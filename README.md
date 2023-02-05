@@ -1,2 +1,2 @@
-# bondrewd
+# Bondrewd
 The Bondrewd programming language
