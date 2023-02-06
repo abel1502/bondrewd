@@ -42,6 +42,28 @@ public:
     }
     #pragma endregion to_string
 
+    #pragma region Updating
+    void advance(char c) {
+        switch (c) {
+            case '\n':
+                ++line;
+                column = 0;
+                break;
+            
+            case '\t':
+                column += 4;
+                break;
+
+            case '\r':
+            case EOF:
+                break;
+
+            default:
+                ++column;
+                break;
+        }
+    }
+    #pragma endregion Updating
 };
 
 
