@@ -1,6 +1,6 @@
 #pragma once
 
-#include <bondrewd/_common.hpp>
+#include <bondrewd/internal/common.hpp>
 
 #include <string>
 #include <string_view>
