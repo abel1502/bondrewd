@@ -21,7 +21,6 @@ public:
     static constexpr int end_of_file = EOF;
     #pragma endregion Constants
 
-
     #pragma region Constructors
     Scanner(std::istream &input, std::string_view filename = "") :
         input{input}, loc{filename, 0, 0} {
@@ -58,12 +57,6 @@ public:
         return get_at(buf_pos - 1);
     }
 
-    void advance() {
-        loc.advance(cur());
-        ++buf_pos;
-        cached_char = get_at(buf_pos);
-    }
-
     template <auto P>
     std::string_view read_while() {
         auto start_pos = get_cur_iter();
@@ -86,6 +79,31 @@ public:
     }
     #pragma endregion Reading
 
+    #pragma region Moving
+    void advance() {
+        loc.advance(cur());
+        ++buf_pos;
+        cached_char = get_at(buf_pos);
+    }
+
+    void advance(size_t count) {
+        for (size_t i = 0; i < count; ++i) {
+            advance();
+        }
+    }
+
+    size_t tell() const {
+        return buf_pos;
+    }
+
+    void seek(size_t pos) {
+        assert(pos <= buf.size());
+
+        buf_pos = pos;
+        cached_char = get_at(buf_pos);
+    }
+    #pragma endregion Moving
+
     #pragma region Location
     const SrcLocation &get_loc() const {
         return loc;
@@ -93,11 +111,13 @@ public:
     #pragma endregion Location
 
 protected:
+    #pragma region Fields
     mutable std::istream &input;
     mutable std::vector<char> buf{};
     size_t buf_pos{0};
     SrcLocation loc;
     int cached_char{end_of_file};
+    #pragma endregion Fields
 
     #pragma region Pulling
     void pull_chunk() const {
