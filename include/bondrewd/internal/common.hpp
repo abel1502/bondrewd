@@ -1,30 +1,46 @@
 #pragma once
 
-// These includes are here 'by standard', and will not be removed under any circumstances.
-// You may rely on them being present here, and not include them manually
+/// These includes are here 'by standard', and will not be removed under any circumstances.
+/// You may rely on them being present here, and not include them manually
 #include <cstddef>
 #include <cstdlib>
 #include <utility>
 #include <cassert>
 
-// These includes are 'implementation-defined', and may get removed in the future.
-// If you need them, include them manually in your code
+/// These includes are 'implementation-defined', and may get removed in the future.
+/// If you need them, include them manually in your code
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
 
 
+/// These are some common macros that are useful with other macros
 #define MACRO_FUNC(...) do {__VA_ARGS__} while (0)
 #define MACRO_COMMA  ,
 #define MACRO_EMPTY
 #define MACRO_PASS(...)  __VA_ARGS__
 
 
+/// These provide a mechanism for defining a class with all methods in a header, but
+/// still having them compiled in a single translation unit.
+/// 
+/// To use them:
+///  - put JUST_DECLARE right before your class or struct declaration
+///  - put PROMISE_DEFINITION(class MyClass) somewhere in your header after 
+///    the class declaration.
+///  - put DEFINE_DECLARED(class MyClass) in a translation unit. It will house
+///    the actual definition of the class.
+#define JUST_DECLARE  template <typename = void>
+#define PROMISE_DEFINITION(CLS)  extern DEFINE_DECLARED(CLS);
+#define DEFINE_DECLARED(CLS)  template CLS<>;
 
+
+/// These are some logging macros
 #define ERR(msg, ...)  bondrewd::_dbg(true,  1, __func__, __LINE__, msg, ##__VA_ARGS__)
 #define DBG(msg, ...)  bondrewd::_dbg(false, 2, __func__, __LINE__, msg, ##__VA_ARGS__)
 
 
+/// This is a macro to facilitate exception declaraion
 #define DECLARE_ERROR(NAME, PARENT)                     \
     class NAME : public PARENT {                        \
     public:                                             \
@@ -33,6 +49,7 @@
     };
 
 
+/// This macro is used to ensure that a switch statement is exhaustive
 #define NODEFAULT                       \
     default: {                          \
         ERR("Shouldn't be reachable");  \
