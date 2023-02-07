@@ -43,13 +43,13 @@ public:
     #pragma endregion to_string
 
     #pragma region Updating
-    void advance(char c) {
+    void advance(int c) {
         switch (c) {
             case '\n':
                 ++line;
                 column = 0;
                 break;
-            
+
             case '\t':
                 column += 4;
                 break;

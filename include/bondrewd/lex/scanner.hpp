@@ -38,11 +38,10 @@ public:
     #pragma endregion Constructors
 
     #pragma region Service constructors
-    // TODO: Forbid move?
     Scanner(const Scanner &) = delete;
     Scanner(Scanner &&) = default;
     Scanner &operator=(const Scanner &) = delete;
-    Scanner &operator=(Scanner &&) = default;
+    Scanner &operator=(Scanner &&) = delete;
     #pragma endregion Service constructors
 
     #pragma region Reading
@@ -118,7 +117,7 @@ public:
 
 protected:
     #pragma region Fields
-    mutable std::istream &input;
+    std::istream &input;
     mutable std::vector<char> buf{};
     size_t buf_pos{0};
     SrcLocation loc;
