@@ -18,13 +18,9 @@ clean:
 
 re: clean all
 
-$(GENERATED_TOKENS_HPP): tokens
-$(GENERATED_TOKENS_CPP): tokens
-
-tokens: $(CONFIG_KEYWORDS) $(CONFIG_PUNCTS)
+$(GENERATED_TOKENS_HPP) $(GENERATED_TOKENS_CPP): $(CONFIG_KEYWORDS) $(CONFIG_PUNCTS) ./tokens/templates/tokens.tpl.hpp ./tokens/templates/tokens.tpl.cpp ./tokens/generate_tokens.py ./tokens/trie_gen.py
 	$(PYTHON) ./tokens/generate_tokens.py --keywords $(CONFIG_KEYWORDS) --puncts $(CONFIG_PUNCTS)
 
-grammar: $(CONFIG_GRAMMAR)
-	# TODO: pegen++
+# TODO: pegen++
 
 .PHONY: all clean re tokens
