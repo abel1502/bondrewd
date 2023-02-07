@@ -24,24 +24,35 @@ const char *keyword_to_string(HardKeyword value) {
 }
 
 Punct string_to_punct(std::string_view value) {
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wexit-time-destructors"
     static const std::unordered_map<std::string_view, Punct> map = {
         {% for punct in tokens_info.puncts -%}
         { {{ punct.value }}, Punct::{{ punct.name }} },
         {% endfor %}
     };
+    #pragma GCC diagnostic pop
 
     return map.at(value);
 }
 
 HardKeyword string_to_keyword(std::string_view value) {
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wexit-time-destructors"
     static const std::unordered_map<std::string_view, HardKeyword> map = {
         {% for keyword in tokens_info.keywords -%}
         { {{ keyword.value }}, HardKeyword::{{ keyword.name }} },
         {% endfor %}
     };
+    #pragma GCC diagnostic pop
 
     return map.at(value);
 }
+
+
+DEFINE_DECLARED(class MiscTrie);
+DEFINE_DECLARED(class StringTrie);
+DEFINE_DECLARED(class BlockCommentTrie);
 
 
 } // namespace bondrewd::lex

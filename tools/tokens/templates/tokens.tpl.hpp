@@ -39,16 +39,17 @@ HardKeyword string_to_keyword(std::string_view value);
         {% for ch, child_node in node.children.items() %}
             case '{{ ch | cpp_escape }}': {
                 {{ _walk_trie_node(child_node, caller=caller) }}
-            }; break;
+            } break;
         {% endfor %}
         default: {
             {{ caller(node) }}
-        }; break;
+        } break;
     }
 {% endmacro -%}
 
 
 {%- macro gen_trie(name, trie_info, extra_args="") -%}
+JUST_DECLARE
 class {{ name }} {
 public:
     #pragma region Verdicts
@@ -89,6 +90,8 @@ public:
     #pragma endregion Interface
 
 };
+
+PROMISE_DEFINITION(class {{ name }});
 {%- endmacro -%}
 
 
