@@ -2,7 +2,7 @@
 .vscode
 .idea
 __pycache__
-*.generated.*
+# *.generated.*
 
 /build
 /CMakeSettings.json
