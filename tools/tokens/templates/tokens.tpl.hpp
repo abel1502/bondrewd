@@ -51,7 +51,7 @@ extern const std::unordered_map<std::string_view, HardKeyword> string_to_keyword
 
 
 {%- macro gen_trie(name, trie_info, extra_args="") -%}
-JUST_DECLARE
+// JUST_DECLARE
 class {{ name }} {
 public:
     #pragma region Verdicts
@@ -74,7 +74,7 @@ public:
     #pragma endregion Service constructors
 
     #pragma region Interface
-    Verdict feed(Scanner scanner{{ ', ' if extra_args }}{{ extra_args }}) {
+    Verdict feed(Scanner &scanner{{ ', ' if extra_args }}{{ extra_args }}) {
         auto start_pos = scanner.tell();
 
         {%- set payload = caller -%}
@@ -93,7 +93,7 @@ public:
 
 };
 
-PROMISE_DEFINITION(class {{ name }});
+// PROMISE_DEFINITION(class {{ name }});
 {%- endmacro -%}
 
 

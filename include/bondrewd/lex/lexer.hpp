@@ -60,7 +60,7 @@ public:
             }
         }
 
-        token = Token::endmarker(scanner.loc(), "");
+        token = Token::endmarker(scanner.get_loc(), "");
         return token;
     }
     #pragma endregion Interface
@@ -72,19 +72,7 @@ protected:
     #pragma endregion Fields
 
     #pragma region Private constants
-    static const std::unordered_map<char, char> simple_escapes = {
-        // '\n', '' and 'x' are handled separately
-        '\'': '\'',
-        '\"': '\"',
-        '\\': '\\',
-        'a': '\a',
-        'b': '\b',
-        'f': '\f',
-        'n': '\n',
-        'r': '\r',
-        't': '\t',
-        'v': '\v',
-    };
+    static const std::unordered_map<char, char> simple_escapes;
     #pragma endregion Private constants
 
     #pragma region Character classification
@@ -145,7 +133,7 @@ protected:
     void parse_name() {
         auto start_pos = scanner.tell();
 
-        auto value = scanner.read_while<is_name_char>(token.get_name().value);
+        auto value = scanner.read_while<is_name_char>();
         assert(!value.empty());
 
         token = Token::name(value, start_pos.loc, value);
@@ -216,7 +204,7 @@ protected:
             
             case StringTrie::Verdict::end_quote: {
                 if (end_quote == start_quote) {
-                    token = Token::string(value, start_pos.loc, value);
+                    token = Token::string(value, start_quote, start_pos.loc, value);
                     return;
                 }
 
@@ -224,12 +212,12 @@ protected:
             } break;
             
             case StringTrie::Verdict::escape: {
-                if (simple_escapes.contains(escape)) {
-                    value += simple_escapes.at(escape);
+                if (escape == '\n' || escape == Scanner::end_of_file) {
                     break;
                 }
 
-                if (escape == '\n' || escape == Scanner.end_of_file) {
+                if (simple_escapes.contains((char)escape)) {
+                    value += simple_escapes.at((char)escape);
                     break;
                 }
 
@@ -241,10 +229,10 @@ protected:
                     scanner.advance();
                     
                     // This automatically checks for invalid digits and EOF
-                    unsigned value = evaluate_digit(digits[0], 16) * 16 + evaluate_digit(digits[1], 16);
-                    assert(value < 0x100);
+                    unsigned hex_value = evaluate_digit(digits[0], 16) * 16 + evaluate_digit(digits[1], 16);
+                    assert(hex_value < 0x100);
 
-                    value += (char)value;
+                    value += (char)hex_value;
                     break;
                 }
             } break;
@@ -276,13 +264,14 @@ protected:
                 scanner.advance();
             } break;
 
-            case BlockCommentTrie::Verdict::open: {
+            case BlockCommentTrie::Verdict::start: {
                 ++balance;
             } break;
 
-            case BlockCommentTrie::Verdict::close: {
+            case BlockCommentTrie::Verdict::end: {
                 --balance;
             } break;
+            }
         }
     }
     #pragma endregion Tokenization subroutines
@@ -290,6 +279,25 @@ protected:
 };
 
 PROMISE_DEFINITION(class Lexer);
+
+
+#pragma region Out-of-line constants
+// TODO: I don't appreciate workarounds like this... Maybe just spread the decl and def manually...?
+template <typename _>
+const std::unordered_map<char, char> Lexer<_>::simple_escapes = {
+    // '\n', '' and 'x' are handled separately
+    {'\'', '\''},
+    {'\"', '\"'},
+    {'\\', '\\'},
+    {'a' , '\a'},
+    {'b' , '\b'},
+    {'f' , '\f'},
+    {'n' , '\n'},
+    {'r' , '\r'},
+    {'t' , '\t'},
+    {'v' , '\v'},
+};
+#pragma endregion Out-of-line constants
 
 
 }  // namespace bondrewd::lex

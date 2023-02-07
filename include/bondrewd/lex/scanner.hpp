@@ -23,6 +23,20 @@ public:
     struct state_t {
         size_t buf_pos;
         SrcLocation loc;
+
+        constexpr auto operator<=>(const state_t& other) const {
+            return buf_pos <=> other.buf_pos;
+        }
+
+        constexpr bool operator==(const state_t& other) const {
+            return buf_pos == other.buf_pos;
+        }
+
+        constexpr bool operator!=(const state_t& other) const = default;
+        constexpr bool operator<=(const state_t& other) const = default;
+        constexpr bool operator>=(const state_t& other) const = default;
+        constexpr bool operator<(const state_t& other) const = default;
+        constexpr bool operator>(const state_t& other) const = default;
     };
     #pragma endregion Constants and typedefs
 
