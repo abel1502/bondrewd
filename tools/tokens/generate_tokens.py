@@ -15,7 +15,7 @@ from trie_gen import Trie, TrieInfo
 LINE_COMMENTS: typing.Final[typing.Collection[str]] = ("//", "#")
 BLOCK_COMMENT: typing.Final[typing.Tuple[str, str]] = ("/*", "*/")
 STRING_QUOTES: typing.Final[typing.Collection[str]] = ("'", '"')
-STRING_ESCAPES: typing.Final[typing.Collection[str]] = ("'", '"', "n", "r", "t", "0", "\\")
+STRING_ESCAPES: typing.Final[typing.Collection[str]] = ("\\", "\n", "'", '"', "0", "n", "r", "t")
 
 
 parser = argparse.ArgumentParser(
