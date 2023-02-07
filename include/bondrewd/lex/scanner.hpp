@@ -14,12 +14,17 @@ namespace bondrewd::lex {
 
 class Scanner {
 public:
-    #pragma region Constants
+    #pragma region Constants and typedefs
     static constexpr size_t BUF_DEFAULT_CAPACITY = 4096;
     static constexpr size_t CHUNK_SIZE = 1024;
 
     static constexpr int end_of_file = EOF;
-    #pragma endregion Constants
+
+    struct state_t {
+        size_t buf_pos;
+        SrcLocation loc;
+    };
+    #pragma endregion Constants and typedefs
 
     #pragma region Constructors
     Scanner(std::istream &input, std::string_view filename = "") :
@@ -74,8 +79,8 @@ public:
         read_while<std::isspace>();
     }
 
-    void skip_line() {
-        read_while<[](int c) { return c != '\n' && c != end_of_file; }>();
+    std::string_view skip_line() {
+        return read_while<[](int c) { return c != '\n' && c != end_of_file; }>();
     }
     #pragma endregion Reading
 
@@ -92,14 +97,15 @@ public:
         }
     }
 
-    size_t tell() const {
-        return buf_pos;
+    state_t tell() const {
+        return {buf_pos, loc};
     }
 
-    void seek(size_t pos) {
-        assert(pos <= buf.size());
+    void seek(const state_t &pos) {
+        assert(pos.buf_pos <= buf.size());
 
-        buf_pos = pos;
+        buf_pos = pos.buf_pos;
+        loc = pos.loc;
         cached_char = get_at(buf_pos);
     }
     #pragma endregion Moving
