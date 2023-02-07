@@ -6,6 +6,7 @@
 
 #include <string_view>
 #include <cstdio>
+#include <unordered_map>
 
 
 namespace bondrewd::lex {
@@ -29,15 +30,16 @@ const char *punct_to_string(Punct value);
 
 const char *keyword_to_string(HardKeyword value);
 
-Punct string_to_punct(std::string_view value);
+extern const std::unordered_map<std::string_view, Punct> string_to_punct;
 
-HardKeyword string_to_keyword(std::string_view value);
+extern const std::unordered_map<std::string_view, HardKeyword> string_to_keyword;
 
 
 {% macro _walk_trie_node(node) %}
     switch (scanner.cur()) {
         {% for ch, child_node in node.children.items() %}
             case '{{ ch | cpp_escape }}': {
+                scanner.advance();
                 {{ _walk_trie_node(child_node, caller=caller) }}
             } break;
         {% endfor %}
@@ -54,7 +56,7 @@ class {{ name }} {
 public:
     #pragma region Verdicts
     enum class Verdict {
-        {% for verdict in trie_info.verdicts %}
+        {% for verdict in trie_info.verdicts -%}
             {{ verdict }} = {{ loop.index0 }},
         {% endfor %}
     };
@@ -108,14 +110,15 @@ PROMISE_DEFINITION(class {{ name }});
 {% endcall %}
 
 
-{% call(node) gen_trie("StringTrie", tokens_info.string_trie, extra_args="char *quote, char *escape") %}
+{% call(node) gen_trie("StringTrie", tokens_info.string_trie, extra_args="char *quote, int *escape") %}
     {% if node.verdict == "end_quote" %}
         if (quote) {
             *quote = '{{ node.word | cpp_escape }}';
         }
     {% elif node.verdict == "escape" %}
         if (escape) {
-            *escape = '{{ node.word[1:] | cpp_escape }}';  {#- skip \ #}
+            *escape = scanner.cur();
+            scanner.advance();
         }
     {% endif %}
 {% endcall %}

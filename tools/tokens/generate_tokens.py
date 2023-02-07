@@ -15,7 +15,6 @@ from trie_gen import Trie, TrieInfo
 LINE_COMMENTS: typing.Final[typing.Collection[str]] = ("//", "#")
 BLOCK_COMMENT: typing.Final[typing.Tuple[str, str]] = ("/*", "*/")
 STRING_QUOTES: typing.Final[typing.Collection[str]] = ("'", '"')
-STRING_ESCAPES: typing.Final[typing.Collection[str]] = ("\\", "\n", "'", '"', "0", "n", "r", "t")
 
 
 parser = argparse.ArgumentParser(
@@ -91,7 +90,7 @@ class TokensInfo:
         misc_trie.add_wordlist(punct_lookup.keys(), "punct")
         misc_trie.add_wordlist(STRING_QUOTES, "string_quote")
         
-        string_trie.add_wordlist(("\\" + k for k in STRING_ESCAPES), "escape")
+        string_trie.add_word("\\", "escape")  # A bit of a hack, actually
         string_trie.add_wordlist(STRING_QUOTES, "end_quote")
         
         block_comment_trie.add_word(BLOCK_COMMENT[0], "start")
@@ -113,7 +112,8 @@ def render_templates(output_dir: pathlib.Path, tokens_info: TokensInfo):
         autoescape=False,
     )
     
-    env.filters["cpp_escape"] = lambda s: codecs.encode(s, "unicode_escape").decode("ascii").replace("'", "\\'")
+    env.filters["cpp_escape"] = lambda s: codecs.encode(s, "unicode_escape").decode("ascii")\
+        .replace("'", "\\'").replace('"', '\\"')
     
     env.get_template("tokens.tpl.hpp").stream(
         date=datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),

@@ -121,6 +121,10 @@ public:
     const SrcLocation &get_location() const noexcept {
         return location;
     }
+
+    const std::string_view &get_source() const noexcept {
+        return source;
+    }
     #pragma endregion Getters
 
     #pragma region Predicates

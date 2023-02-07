@@ -63,15 +63,13 @@ public:
 
     template <auto P>
     std::string_view read_while() {
-        auto start_pos = get_cur_iter();
+        auto start_pos = tell();
 
         while (P(cur())) {
             advance();
         }
 
-        auto end_pos = get_cur_iter();
-
-        return std::string_view(start_pos, end_pos);
+        return view_since(start_pos);
     }
 
     void skip_space() {
@@ -79,7 +77,15 @@ public:
     }
 
     std::string_view skip_line() {
-        return read_while<[](int c) { return c != '\n' && c != end_of_file; }>();
+        auto result = read_while<[](int c) { return c != '\n' && c != end_of_file; }>();
+        advance();
+        return result;
+    }
+
+    std::string_view view_since(const state_t &pos) const {
+        assert(pos.buf_pos <= buf.size());
+
+        return std::string_view(buf.begin() + pos.buf_pos, buf.begin() + buf_pos);
     }
     #pragma endregion Reading
 
@@ -114,6 +120,16 @@ public:
         return loc;
     }
     #pragma endregion Location
+
+    #pragma region EOF checking
+    bool at_eof() const {
+        return cur() == end_of_file;
+    }
+
+    operator bool() const {
+        return !at_eof();
+    }
+    #pragma endregion EOF checking
 
 protected:
     #pragma region Fields
@@ -164,10 +180,6 @@ protected:
     }
 
     auto get_cur_iter() const {
-        return buf.begin() + buf_pos;
-    }
-
-    auto get_cur_iter() {
         return buf.begin() + buf_pos;
     }
     #pragma endregion Reading
