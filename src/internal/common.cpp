@@ -1,4 +1,4 @@
-#include <bondrewd/_common.hpp>
+#include <bondrewd/internal/common.hpp>
 
 #include <cstdio>
 #include <cstdarg>
