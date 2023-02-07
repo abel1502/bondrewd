@@ -37,16 +37,16 @@ public:
     #pragma region Interface
     /**
      * Get the next token from the input stream.
-     * 
+     *
      * Note: caching is expected to be done by the caller.
-     * 
+     *
      * @throws LexerError if the next token is invalid.
      */
     Token get_token() {
         // Loop needed because of how comments are handled
         while (scanner) {
             scanner.skip_space();
-            
+
             if (is_digit(scanner.cur())) {
                 parse_number();
                 return token;
@@ -56,7 +56,7 @@ public:
                 parse_name_or_keyword();
                 return token;
             }
-            
+
             if (parse_other()) {
                 return token;
             }
@@ -108,10 +108,9 @@ protected:
     static int evaluate_digit(int c, unsigned base) {
         assert(2 <= base && base <= 36);
 
-        unsigned result = evaluate_digit(c, loc);
+        unsigned result = evaluate_digit(c);
 
         if (result >= base) {
-            // error(fmt::format("Wrong digit '{}' for base {}", (char)c, base), loc);
             return -1;
         }
 
@@ -122,16 +121,16 @@ protected:
         return evaluate_digit_checked(c, base, scanner.get_loc());
     }
 
-    unsigned evaluate_digit_checked(int c, unsigned base, SrcLocation loc) {
+    unsigned evaluate_digit_checked(int c, unsigned base, const SrcLocation &loc) {
         assert(2 <= base && base <= 36);
 
-        int result = evaluate_digit(c, loc);
+        int result = evaluate_digit(c);
 
         if (result < 0) {
             error(fmt::format("Invalid digit '{}'", (char)c), loc);
         }
 
-        if (result >= base) {
+        if ((unsigned)result >= base) {
             error(fmt::format("Wrong digit '{}' for base {}", (char)c, base), loc);
         }
 
@@ -140,16 +139,16 @@ protected:
     #pragma endregion Character classification
 
     #pragma region Number parsing
-    unsigned long long extract_integer(std::string_view digits, unsigned base) {
+    unsigned long long extract_integer(std::string_view digits, unsigned base, const SrcLocation &loc) {
         // Digits are assumed to be correct
 
         unsigned long long result = 0;
 
         for (auto digit : digits) {
             if (__builtin_mul_overflow(result, base, &result))
-                error("Integer literal too large", start_pos.loc);
+                error("Integer literal too large", loc);
             if (__builtin_add_overflow(result, evaluate_digit(digit, base), &result))
-                error("Integer literal too large", start_pos.loc);
+                error("Integer literal too large", loc);
         }
 
         return result;
@@ -159,7 +158,8 @@ protected:
                          std::string_view fractional_part,
                          std::string_view exponent_part,
                          int exponent_sign,
-                         unsigned base) {
+                         unsigned base,
+                         const SrcLocation &loc) {
         // Digits are assumed to be correct
 
         double result = 0;
@@ -178,7 +178,7 @@ protected:
         result += fraction;
 
         if (exponent_sign != 0) {
-            unsigned long long exponent = extract_integer(exponent_part, base);
+            unsigned long long exponent = extract_integer(exponent_part, base, loc);
 
             result *= std::exp2(exponent_sign * exponent);
         }
@@ -222,7 +222,7 @@ protected:
         }
 
         std::string_view integral_part = scanner.read_while(
-            [base](int c) { return evaluate_digit_base(c, base) >= 0; }
+            [base](int c) { return evaluate_digit(c, base) >= 0; }
         );
 
         bool is_integer = true;
@@ -232,20 +232,20 @@ protected:
         int exp_sign = 0;
 
         if (scanner.cur() == '.' \
-            && (!integral_part.empty() || evaluate_digit_base(scanner.peek_next(), base) >= 0)) {
-            
+            && (!integral_part.empty() || evaluate_digit(scanner.peek_next(), base) >= 0)) {
+
             scanner.advance();
             is_integer = false;
 
             fraction_part = scanner.read_while(
-                [base](int c) { return evaluate_digit_base(c, base) >= 0; }
+                [base](int c) { return evaluate_digit(c, base) >= 0; }
             );
         }
 
         if (base == 10 \
-            && (!faction_part.empty() || !integral_part.empty()) \
+            && (!fraction_part.empty() || !integral_part.empty()) \
             && (scanner.cur() == 'E' || scanner.cur() == 'e')) {
-            
+
             scanner.advance();
             is_integer = false;
             exp_sign = 1;
@@ -279,19 +279,19 @@ protected:
         if (integral_part.size() >= MAX_NUMBER_LENGTH \
             || fraction_part.size() >= MAX_NUMBER_LENGTH \
             || exp_part.size() >= MAX_NUMBER_LENGTH) {
-            
+
             error("Integer literal too large", start_pos.loc);
         }
 
         if (is_integer) {
             token = Token::number(
-                extract_integer(integral_part, base),
+                extract_integer(integral_part, base, start_pos.loc),
                 start_pos.loc,
                 scanner.view_since(start_pos)
             );
         } else {
             token = Token::number(
-                extract_float(integral_part, fraction_part, exp_part, exp_sign, base),
+                extract_float(integral_part, fraction_part, exp_part, exp_sign, base, start_pos.loc),
                 start_pos.loc,
                 scanner.view_since(start_pos)
             );
@@ -346,7 +346,7 @@ protected:
         case MiscTrie::Verdict::punct:
             token = Token::punct(punct, start_pos.loc, scanner.view_since(start_pos));
             return true;
-        
+
         NODEFAULT;
         }
     }
@@ -380,7 +380,7 @@ protected:
 
                 value += scanner.view_since(seg_start_pos);
             } break;
-            
+
             case StringTrie::Verdict::end_quote: {
                 if (end_quote == start_quote) {
                     token = Token::string(value, start_quote, start_pos.loc, value);
@@ -389,7 +389,7 @@ protected:
 
                 value += scanner.view_since(seg_start_pos);
             } break;
-            
+
             case StringTrie::Verdict::escape: {
                 if (escape == '\n' || escape == Scanner::end_of_file) {
                     break;
@@ -406,7 +406,7 @@ protected:
                     scanner.advance();
                     digits[1] = scanner.cur();
                     scanner.advance();
-                    
+
                     // This automatically checks for invalid digits and EOF
                     unsigned hex_value = evaluate_digit_checked(digits[0], 16, seg_start_pos.loc) * 16 \
                                        + evaluate_digit_checked(digits[1], 16, seg_start_pos.loc);
@@ -423,7 +423,7 @@ protected:
             }
         }
     }
-    
+
     void parse_line_comment() {
         // TODO: Handle special comments, like pragmas?
         scanner.skip_line();
@@ -462,7 +462,8 @@ protected:
     #pragma region Error handling
     [[noreturn]]
     void error(std::string message, const SrcLocation &loc) {
-        // TODO: Save or use the location
+        // TODO: Save or use the loc parameter
+        (void)loc;
 
         throw LexerError{std::move(message)};
     }

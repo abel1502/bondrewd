@@ -32,7 +32,7 @@ public:
 
     TOKEN_FACTORY_(EndmarkerValue, endmarker, MACRO_PASS(), MACRO_PASS())
     TOKEN_FACTORY_(NameValue, name, MACRO_PASS(std::string_view value,), MACRO_PASS(std::move(value)))
-    TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(int64_t value,), MACRO_PASS(value))
+    TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(uint64_t value,), MACRO_PASS(value))
     TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(double value,), MACRO_PASS(value))
     TOKEN_FACTORY_(StringValue, string, MACRO_PASS(std::string_view value, char quote_char,), MACRO_PASS(std::move(value), quote_char))
     TOKEN_FACTORY_(KeywordValue, keyword, MACRO_PASS(HardKeyword value,), MACRO_PASS(value))
@@ -58,12 +58,12 @@ protected:
 
     struct NumberValue {
         std::variant<
-            int64_t,
+            uint64_t,
             double
         > value;
 
         constexpr bool is_int() const noexcept {
-            return std::holds_alternative<int64_t>(value);
+            return std::holds_alternative<uint64_t>(value);
         }
 
         constexpr bool is_float() const noexcept {
@@ -108,14 +108,14 @@ public:
         VALUE_STRUCT &get_##TYPE() { \
             return std::get<VALUE_STRUCT>(value); \
         }
-    
+
     TOKEN_VALUE_GETTER_(EndmarkerValue, endmarker)
     TOKEN_VALUE_GETTER_(NameValue, name)
     TOKEN_VALUE_GETTER_(NumberValue, number)
     TOKEN_VALUE_GETTER_(StringValue, string)
     TOKEN_VALUE_GETTER_(KeywordValue, keyword)
     TOKEN_VALUE_GETTER_(PunctValue, punct)
-    
+
     #undef TOKEN_VALUE_GETTER_
 
     const SrcLocation &get_location() const noexcept {
@@ -132,7 +132,7 @@ public:
         bool is_##TYPE() const noexcept { \
             return type == TokenType::TYPE; \
         }
-    
+
     TOKEN_TYPE_PREDICATE_(endmarker)
     TOKEN_TYPE_PREDICATE_(name)
     TOKEN_TYPE_PREDICATE_(number)
@@ -172,7 +172,7 @@ protected:
     TOKEN_CTOR_(StringValue, string)
     TOKEN_CTOR_(KeywordValue, keyword)
     TOKEN_CTOR_(PunctValue, punct)
-    
+
     #undef TOKEN_CTOR_
     #pragma endregion Protected constructors
 
