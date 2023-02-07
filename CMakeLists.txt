@@ -8,7 +8,7 @@ set(CMAKE_CXX_EXTENSIONS false)
 set(CXX_WARNING_FLAGS "\
 	-Wall -Wno-multichar -Wno-c++98-compat-pedantic \
 	-Wno-shadow-field-in-constructor -Wno-old-style-cast \
-	-Wno-sign-conversion -Wno-extra-semi-stmt
+	-Wno-sign-conversion -Wno-extra-semi-stmt \
 ")
 set(CXX_OPTIMIZE_1_FLAGS "-O2 -g")
 
