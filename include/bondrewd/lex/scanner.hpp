@@ -86,6 +86,17 @@ public:
         return view_since(start_pos);
     }
 
+    template <typename T>
+    std::string_view read_while(T predicate) {
+        auto start_pos = tell();
+
+        while (predicate(cur())) {
+            advance();
+        }
+
+        return view_since(start_pos);
+    }
+
     void skip_space() {
         read_while<std::isspace>();
     }

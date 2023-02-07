@@ -7,6 +7,8 @@
 #include <cctype>
 #include <exception>
 #include <fmt/core.h>
+#include <ranges>
+#include <cmath>
 
 
 namespace bondrewd::lex {
@@ -73,6 +75,7 @@ protected:
 
     #pragma region Private constants
     static const std::unordered_map<char, char> simple_escapes;
+    static constexpr unsigned MAX_NUMBER_LENGTH = 128;
     #pragma endregion Private constants
 
     #pragma region Character classification
@@ -88,7 +91,7 @@ protected:
         return ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F') || is_digit(c);
     }
 
-    static unsigned evaluate_digit(int c) {
+    static int evaluate_digit(int c) {
         if ('0' <= c && c <= '9') {
             return c - '0';
         }
@@ -99,25 +102,201 @@ protected:
             return c - 'A' + 10;
         }
 
-        throw LexerError{fmt::format("Invalid digit '{}'", (char)c)};
+        return -1;
     }
 
-    static unsigned evaluate_digit(int c, unsigned base) {
+    static int evaluate_digit(int c, unsigned base) {
         assert(2 <= base && base <= 36);
 
-        unsigned result = evaluate_digit(c);
+        unsigned result = evaluate_digit(c, loc);
 
         if (result >= base) {
-            throw LexerError{fmt::format("Wrong digit '{}' for base {}", (char)c, base)};
+            // error(fmt::format("Wrong digit '{}' for base {}", (char)c, base), loc);
+            return -1;
         }
 
         return result;
     }
+
+    unsigned evaluate_digit_checked(int c, unsigned base) {
+        return evaluate_digit_checked(c, base, scanner.get_loc());
+    }
+
+    unsigned evaluate_digit_checked(int c, unsigned base, SrcLocation loc) {
+        assert(2 <= base && base <= 36);
+
+        int result = evaluate_digit(c, loc);
+
+        if (result < 0) {
+            error(fmt::format("Invalid digit '{}'", (char)c), loc);
+        }
+
+        if (result >= base) {
+            error(fmt::format("Wrong digit '{}' for base {}", (char)c, base), loc);
+        }
+
+        return (unsigned)result;
+    }
     #pragma endregion Character classification
+
+    #pragma region Number parsing
+    unsigned long long extract_integer(std::string_view digits, unsigned base) {
+        // Digits are assumed to be correct
+
+        unsigned long long result = 0;
+
+        for (auto digit : digits) {
+            if (__builtin_mul_overflow(result, base, &result))
+                error("Integer literal too large", start_pos.loc);
+            if (__builtin_add_overflow(result, evaluate_digit(digit, base), &result))
+                error("Integer literal too large", start_pos.loc);
+        }
+
+        return result;
+    }
+
+    double extract_float(std::string_view integral_part,
+                         std::string_view fractional_part,
+                         std::string_view exponent_part,
+                         int exponent_sign,
+                         unsigned base) {
+        // Digits are assumed to be correct
+
+        double result = 0;
+
+        for (auto digit : integral_part) {
+            result *= base;
+            result += evaluate_digit(digit, base);
+        }
+
+        double fraction = 0;
+        for (auto digit : std::ranges::reverse_view(fractional_part)) {
+            fraction += evaluate_digit(digit, base);
+            fraction /= base;
+        }
+
+        result += fraction;
+
+        if (exponent_sign != 0) {
+            unsigned long long exponent = extract_integer(exponent_part, base);
+
+            result *= std::exp2(exponent_sign * exponent);
+        }
+
+        return result;
+    }
+
+    #pragma endregion Number parsing
 
     #pragma region Tokenization subroutines
     void parse_number() {
-        throw LexerError{"Numbers are not yet supported"};
+        auto start_pos = scanner.tell();
+
+        unsigned base = 10;
+
+        // Note: We don't parse sign here, because it will be treated as an unary operator instead
+
+        if (scanner.cur() == '0') {
+            switch (scanner.peek_next()) {
+            case 'B':
+            case 'b':
+                base = 2;
+                scanner.advance(2);
+                break;
+
+            case 'O':
+            case 'o':
+                base = 8;
+                scanner.advance(2);
+                break;
+
+            case 'X':
+            case 'x':
+                base = 16;
+                scanner.advance(2);
+                break;
+
+            default:
+                break;
+            }
+        }
+
+        std::string_view integral_part = scanner.read_while(
+            [base](int c) { return evaluate_digit_base(c, base) >= 0; }
+        );
+
+        bool is_integer = true;
+
+        std::string_view fraction_part{};
+        std::string_view exp_part{};
+        int exp_sign = 0;
+
+        if (scanner.cur() == '.' \
+            && (!integral_part.empty() || evaluate_digit_base(scanner.peek_next(), base) >= 0)) {
+            
+            scanner.advance();
+            is_integer = false;
+
+            fraction_part = scanner.read_while(
+                [base](int c) { return evaluate_digit_base(c, base) >= 0; }
+            );
+        }
+
+        if (base == 10 \
+            && (!faction_part.empty() || !integral_part.empty()) \
+            && (scanner.cur() == 'E' || scanner.cur() == 'e')) {
+            
+            scanner.advance();
+            is_integer = false;
+            exp_sign = 1;
+
+            switch (scanner.cur()) {
+            case '+':
+                scanner.advance();
+                break;
+
+            case '-':
+                scanner.advance();
+                exp_sign = -1;
+                break;
+
+            default:
+                break;
+            }
+
+            // Fine since we're always in base 10 here
+            exp_part = scanner.read_while<is_digit>();
+        }
+
+        if (is_integer && integral_part.empty()) {
+            error("Invalid integer literal", start_pos.loc);
+        }
+
+        if (is_name_char(scanner.cur())) {
+            error(fmt::format("Garbage '{}' after number", (char)scanner.cur()), scanner.get_loc());
+        }
+
+        if (integral_part.size() >= MAX_NUMBER_LENGTH \
+            || fraction_part.size() >= MAX_NUMBER_LENGTH \
+            || exp_part.size() >= MAX_NUMBER_LENGTH) {
+            
+            error("Integer literal too large", start_pos.loc);
+        }
+
+        if (is_integer) {
+            token = Token::number(
+                extract_integer(integral_part, base),
+                start_pos.loc,
+                scanner.view_since(start_pos)
+            );
+        } else {
+            token = Token::number(
+                extract_float(integral_part, fraction_part, exp_part, exp_sign, base),
+                start_pos.loc,
+                scanner.view_since(start_pos)
+            );
+        }
+
     }
 
     void parse_name_or_keyword() {
@@ -150,7 +329,7 @@ protected:
 
         switch (verdict) {
         case MiscTrie::Verdict::none:
-            throw LexerError{"Invalid character"};
+            error(fmt::format("Unexpected character '{}'", (char)scanner.cur()), start_pos.loc);
 
         case MiscTrie::Verdict::string_quote:
             parse_string(quote);
@@ -191,7 +370,7 @@ protected:
             switch (verdict) {
             case StringTrie::Verdict::none: {
                 if (scanner.at_eof()) {
-                    throw LexerError{"Unterminated string"};
+                    error("Unterminated string", start_pos.loc);
                 }
 
                 if (scanner.tell() == seg_start_pos) {
@@ -229,12 +408,15 @@ protected:
                     scanner.advance();
                     
                     // This automatically checks for invalid digits and EOF
-                    unsigned hex_value = evaluate_digit(digits[0], 16) * 16 + evaluate_digit(digits[1], 16);
+                    unsigned hex_value = evaluate_digit_checked(digits[0], 16, seg_start_pos.loc) * 16 \
+                                       + evaluate_digit_checked(digits[1], 16, seg_start_pos.loc);
                     assert(hex_value < 0x100);
 
                     value += (char)hex_value;
                     break;
                 }
+
+                error("Invalid escape sequence", seg_start_pos.loc);
             } break;
 
             NODEFAULT;
@@ -243,12 +425,13 @@ protected:
     }
     
     void parse_line_comment() {
-        // TODO: Handle special comments?
+        // TODO: Handle special comments, like pragmas?
         scanner.skip_line();
     }
 
     void parse_block_comment() {
         // TODO: Allow for different types of block comments?
+        auto start_pos = scanner.tell();
 
         unsigned balance = 1;
 
@@ -258,7 +441,7 @@ protected:
             switch (verdict) {
             case BlockCommentTrie::Verdict::none: {
                 if (scanner.at_eof()) {
-                    throw LexerError{"Unterminated block comment"};
+                    error("Unterminated block comment", start_pos.loc);
                 }
 
                 scanner.advance();
@@ -275,6 +458,15 @@ protected:
         }
     }
     #pragma endregion Tokenization subroutines
+
+    #pragma region Error handling
+    [[noreturn]]
+    void error(std::string message, const SrcLocation &loc) {
+        // TODO: Save or use the location
+
+        throw LexerError{std::move(message)};
+    }
+    #pragma endregion Error handling
 
 };
 
