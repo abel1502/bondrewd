@@ -42,7 +42,7 @@ public:
 
     #pragma region Constructors
     Scanner(std::istream &input, std::string_view filename = "") :
-        input{input}, loc{filename, 0, 0} {
+        input_ptr{&input}, loc{filename, 0, 0} {
         
         buf.reserve(BUF_DEFAULT_CAPACITY);
         pull_chunk();
@@ -55,7 +55,7 @@ public:
     Scanner(const Scanner &) = delete;
     Scanner(Scanner &&) = default;
     Scanner &operator=(const Scanner &) = delete;
-    Scanner &operator=(Scanner &&) = delete;
+    Scanner &operator=(Scanner &&) = default;
     #pragma endregion Service constructors
 
     #pragma region Reading
@@ -158,26 +158,31 @@ public:
 
 protected:
     #pragma region Fields
-    std::istream &input;
+    std::istream *input_ptr;
     mutable std::vector<char> buf{};
     size_t buf_pos{0};
     SrcLocation loc;
     int cached_char{end_of_file};
+
+    /// This workaround is needed for the class to be movable
+    constexpr std::istream &input() const {
+        return *input_ptr;
+    }
     #pragma endregion Fields
 
     #pragma region Pulling
     void pull_chunk() const {
-        if (!input) {
+        if (!input()) {
             return;
         }
 
         buf.resize(buf.size() + CHUNK_SIZE);
-        input.read(buf.data() + buf_pos, CHUNK_SIZE);
-        buf.resize(buf.size() + input.gcount());
+        input().read(buf.data() + buf_pos, CHUNK_SIZE);
+        buf.resize(buf.size() + input().gcount());
     }
 
     void pull_all() const {
-        while (input) {
+        while (input()) {
             pull_chunk();
         }
     }
@@ -187,7 +192,7 @@ protected:
     }
 
     void ensure_total(size_t amount) const {
-        while (amount > buf.size() && input) {
+        while (amount > buf.size() && input()) {
             pull_chunk();
         }
     }

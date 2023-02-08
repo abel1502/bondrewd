@@ -22,15 +22,15 @@ DECLARE_ERROR(LexicalError, std::runtime_error);
 JUST_DECLARE(class, Tokenizer) {
 public:
     #pragma region Constructors
-    Tokenizer(Scanner source) :
-        scanner{std::move(source)} {}
+    Tokenizer(Scanner scanner) :
+        scanner{std::move(scanner)} {}
     #pragma endregion Constructors
 
     #pragma region Service constructors
     Tokenizer(const Tokenizer &) = delete;
-    Tokenizer(Tokenizer &&) = delete;
+    Tokenizer(Tokenizer &&) = default;
     Tokenizer &operator=(const Tokenizer &) = delete;
-    Tokenizer &operator=(Tokenizer &&) = delete;
+    Tokenizer &operator=(Tokenizer &&) = default;
     #pragma endregion Service constructors
 
     #pragma region Interface
