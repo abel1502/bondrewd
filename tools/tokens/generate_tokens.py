@@ -75,7 +75,12 @@ Listing = typing.List[ListingItem]
 
 def read_listing(path: pathlib.Path) -> Listing:
     with path.open("r") as f:
-        return [ListingItem.from_line(line) for line in f]
+        lines = f.readlines()
+    
+    lines = (line.strip() for line in lines)
+    lines = (line for line in lines if line and not line.startswith("#"))
+    
+    return [ListingItem.from_line(line) for line in lines]
 
 
 @dataclasses.dataclass
