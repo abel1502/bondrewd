@@ -39,9 +39,9 @@ const std::unordered_map<std::string_view, HardKeyword> string_to_keyword = {
 #pragma GCC diagnostic pop
 
 
-// DEFINE_DECLARED(class MiscTrie);
-// DEFINE_DECLARED(class StringTrie);
-// DEFINE_DECLARED(class BlockCommentTrie);
+// DEFINE_DECLARED(class, MiscTrie);
+// DEFINE_DECLARED(class, StringTrie);
+// DEFINE_DECLARED(class, BlockCommentTrie);
 
 
 } // namespace bondrewd::lex

@@ -19,8 +19,7 @@ namespace bondrewd::lex {
 DECLARE_ERROR(LexicalError, std::runtime_error);
 
 
-JUST_DECLARE
-class Tokenizer {
+JUST_DECLARE(class, Tokenizer) {
 public:
     #pragma region Constructors
     Tokenizer(Scanner source) :
@@ -472,13 +471,12 @@ protected:
 
 };
 
-PROMISE_DEFINITION(class Tokenizer);
+PROMISE_DEFINITION(class, Tokenizer);
 
 
 #pragma region Out-of-line constants
-// TODO: I don't appreciate workarounds like this... Maybe just spread the decl and def manually...?
-template <typename _>
-const std::unordered_map<char, char> Tokenizer<_>::simple_escapes = {
+// TODO: Check if it's okay to have this in the header?
+const std::unordered_map<char, char> Tokenizer::simple_escapes = {
     // '\n', '' and 'x' are handled separately
     {'\'', '\''},
     {'\"', '\"'},

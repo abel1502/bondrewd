@@ -25,14 +25,17 @@
 /// still having them compiled in a single translation unit.
 /// 
 /// To use them:
-///  - put JUST_DECLARE right before your class or struct declaration
-///  - put PROMISE_DEFINITION(class MyClass) somewhere in your header after 
+///  - put `JUST_DECLARE(class, MyClass)` instead of `class MyClass`
+///  - put `PROMISE_DEFINITION(class, MyClass)` somewhere in your header after 
 ///    the class declaration.
-///  - put DEFINE_DECLARED(class MyClass) in a translation unit. It will house
+///  - put `DEFINE_DECLARED(class, MyClass)` in a translation unit. It will house
 ///    the actual definition of the class.
-#define JUST_DECLARE  template <typename = void>
-#define PROMISE_DEFINITION(CLS)  extern DEFINE_DECLARED(CLS);
-#define DEFINE_DECLARED(CLS)  template CLS<>;
+#define JUST_DECLARE(TYPE, CLS) \
+    template <typename = void> TYPE CLS##_; \
+    using CLS = CLS##_<>; \
+    template <typename> TYPE CLS##_
+#define PROMISE_DEFINITION(TYPE, CLS)  extern DEFINE_DECLARED(TYPE, CLS);
+#define DEFINE_DECLARED(TYPE, CLS)  template TYPE CLS##_<>;
 
 
 /// These are some logging macros
