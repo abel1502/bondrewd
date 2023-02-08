@@ -145,6 +145,7 @@ protected:
         unsigned long long result = 0;
 
         for (auto digit : digits) {
+            // TODO: Maybe make MSVC-compatible
             if (__builtin_mul_overflow(result, base, &result))
                 error("Integer literal too large", loc);
             if (__builtin_add_overflow(result, evaluate_digit(digit, base), &result))
