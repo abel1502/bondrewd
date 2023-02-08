@@ -144,7 +144,7 @@ protected:
     void parse_block_comment();
     #pragma endregion Tokenization subroutines
 
-    #pragma region Error handling
+    #pragma region Error
     [[noreturn]]
     void error(std::string message, const SrcLocation &loc) {
         // TODO: Save or use the loc parameter
@@ -152,7 +152,7 @@ protected:
 
         throw LexicalError{std::move(message)};
     }
-    #pragma endregion Error handling
+    #pragma endregion Error
 
 };
 

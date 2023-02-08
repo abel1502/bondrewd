@@ -32,11 +32,11 @@ public:
     #pragma endregion Service constructors
 
     #pragma region Token access
-    const Token &cur() const {
+    Token &cur() const {
         return get_at(index);
     }
 
-    const Token &peek(int offset) const {
+    Token &peek(int offset) const {
         return get_at(index + offset);
     }
     #pragma endregion Token access
@@ -90,6 +90,135 @@ public:
     }
     #pragma endregion Debug
 
+    #pragma region Expecting
+    #pragma region Proxies
+    struct _ExpectProxy {
+    public:
+        _ExpectProxy(Lexer *lexer) :
+            lexer{lexer} {}
+        
+        _ExpectProxy(const _ExpectProxy &) = default;
+        _ExpectProxy(_ExpectProxy &&) = default;
+        _ExpectProxy &operator=(const _ExpectProxy &) = default;
+        _ExpectProxy &operator=(_ExpectProxy &&) = default;
+
+        Token *token(TokenType type) {
+            lexer->ensure_next();
+
+            Token *result = &lexer->cur();
+            if (result->get_type() != type) {
+                return nullptr;
+            }
+
+            lexer->advance();
+
+            return result;
+        }
+
+        Token *keyword(HardKeyword keyword) {
+            Token *result = token(TokenType::keyword);
+
+            if (result == nullptr || result->get_keyword().value != keyword) {
+                return nullptr;
+            }
+
+            return result;
+        }
+
+        Token *punct(Punct punct) {
+            Token *result = token(TokenType::punct);
+
+            if (result == nullptr || result->get_punct().value != punct) {
+                return nullptr;
+            }
+
+            return result;
+        }
+
+        Token *soft_keyword(const std::string_view &keyword) {
+            Token *result = token(TokenType::name);
+
+            if (result == nullptr || result->get_name().value != keyword) {
+                return nullptr;
+            }
+
+            return result;
+        }
+
+    protected:
+        Lexer *lexer;
+
+    };
+
+    struct _LookaheadProxy : private _ExpectProxy {
+    public:
+        _LookaheadProxy(Lexer *lexer, bool positive) :
+            _ExpectProxy(lexer),
+            state{lexer->tell()},
+            positive{positive} {}
+        
+        _LookaheadProxy(const _LookaheadProxy &) = default;
+        _LookaheadProxy(_LookaheadProxy &&) = default;
+        _LookaheadProxy &operator=(const _LookaheadProxy &) = default;
+        _LookaheadProxy &operator=(_LookaheadProxy &&) = default;
+
+        ~_LookaheadProxy() {
+            lexer->seek(state);
+        }
+
+        #define WRAP_(NAME, ARG_TYPE) \
+            bool NAME(ARG_TYPE arg) { \
+                return ((bool)_ExpectProxy::NAME(arg)) == positive; \
+            }
+        
+        WRAP_(token, TokenType);
+        WRAP_(keyword, HardKeyword);
+        WRAP_(punct, Punct);
+        WRAP_(soft_keyword, std::string_view);
+
+        #undef WRAP_
+    
+    protected:
+        Lexer::state_t state;
+        bool positive;
+
+    };
+    #pragma endregion Proxies
+    
+    /**
+     * Usage examples:
+     *  - `.expect().token(TokenType::keyword)`
+     *  - `.expect().keyword(HardKeyword::if)`
+     *  - `.expect().punct(Punct::semicolon)`
+     *  - `.expect().soft_keyword("aboba")`
+     */
+    auto expect() {
+        return _ExpectProxy{this};
+    }
+
+    /**
+     * Usage examples:
+     *  - `.lookahead(true).token(TokenType::keyword)`
+     *  - `.lookahead(false).keyword(HardKeyword::if)`
+     *  - `.lookahead(true).punct(Punct::semicolon)`
+     *  - `.lookahead(false).soft_keyword("aboba")`
+     */
+    auto lookahead(bool positive) {
+        return _LookaheadProxy{this, positive};
+    }
+    
+    // template <auto F>
+    // bool lookahead(bool positive, auto &&... args) {
+    //     state_t pos = tell();
+
+    //     bool result = (bool)F(std::forward<decltype(args)>(args)...);
+
+    //     seek(pos);
+
+    //     return result == positive;
+    // }
+    #pragma endregion Expecting
+
 protected:
     #pragma region Fields
     mutable Tokenizer tokenizer;
@@ -119,7 +248,7 @@ protected:
     #pragma endregion Pulling
     
     #pragma region Reading
-    const Token &get_at(size_t pos) const {
+    Token &get_at(size_t pos) const {
         ensure_total(pos + 1);
 
         if (pos >= tokens.size()) {

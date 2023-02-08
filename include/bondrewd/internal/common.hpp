@@ -72,4 +72,4 @@ extern int _log_verbosity;
 void _dbg(bool isError, int level, const char* func_name, int line_no, const char* msg, ...);
 
 
-}
+}  // namespace bondrewd
