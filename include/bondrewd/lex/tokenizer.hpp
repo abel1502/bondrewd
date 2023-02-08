@@ -16,22 +16,22 @@ namespace bondrewd::lex {
 
 // TODO: Add location info!
 // (Either to the error or to the lexer state)
-DECLARE_ERROR(LexerError, std::runtime_error);
+DECLARE_ERROR(LexicalError, std::runtime_error);
 
 
 JUST_DECLARE
-class Lexer {
+class Tokenizer {
 public:
     #pragma region Constructors
-    Lexer(Scanner source) :
+    Tokenizer(Scanner source) :
         scanner{std::move(source)} {}
     #pragma endregion Constructors
 
     #pragma region Service constructors
-    Lexer(const Lexer &) = delete;
-    Lexer(Lexer &&) = delete;
-    Lexer &operator=(const Lexer &) = delete;
-    Lexer &operator=(Lexer &&) = delete;
+    Tokenizer(const Tokenizer &) = delete;
+    Tokenizer(Tokenizer &&) = delete;
+    Tokenizer &operator=(const Tokenizer &) = delete;
+    Tokenizer &operator=(Tokenizer &&) = delete;
     #pragma endregion Service constructors
 
     #pragma region Interface
@@ -40,7 +40,7 @@ public:
      *
      * Note: caching is expected to be done by the caller.
      *
-     * @throws LexerError if the next token is invalid.
+     * @throws LexicalError if the next token is invalid.
      */
     Token get_token() {
         // Loop needed because of how comments are handled
@@ -466,19 +466,19 @@ protected:
         // TODO: Save or use the loc parameter
         (void)loc;
 
-        throw LexerError{std::move(message)};
+        throw LexicalError{std::move(message)};
     }
     #pragma endregion Error handling
 
 };
 
-PROMISE_DEFINITION(class Lexer);
+PROMISE_DEFINITION(class Tokenizer);
 
 
 #pragma region Out-of-line constants
 // TODO: I don't appreciate workarounds like this... Maybe just spread the decl and def manually...?
 template <typename _>
-const std::unordered_map<char, char> Lexer<_>::simple_escapes = {
+const std::unordered_map<char, char> Tokenizer<_>::simple_escapes = {
     // '\n', '' and 'x' are handled separately
     {'\'', '\''},
     {'\"', '\"'},
