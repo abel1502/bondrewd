@@ -21,6 +21,7 @@
 #define MACRO_PASS(...)  __VA_ARGS__
 
 
+/// CURRENTLY SUSPENDED
 /// These provide a mechanism for defining a class with all methods in a header, but
 /// still having them compiled in a single translation unit.
 /// 
@@ -30,12 +31,12 @@
 ///    the class declaration.
 ///  - put `DEFINE_DECLARED(class, MyClass)` in a translation unit. It will house
 ///    the actual definition of the class.
-#define JUST_DECLARE(TYPE, CLS) \
-    template <typename = void> TYPE CLS##_; \
-    using CLS = CLS##_<>; \
-    template <typename> TYPE CLS##_
-#define PROMISE_DEFINITION(TYPE, CLS)  extern DEFINE_DECLARED(TYPE, CLS);
-#define DEFINE_DECLARED(TYPE, CLS)  template TYPE CLS##_<>;
+// #define JUST_DECLARE(TYPE, CLS) \
+//     template <typename = void> TYPE CLS##_; \
+//     using CLS = CLS##_<>; \
+//     template <typename _> TYPE CLS##_
+// #define PROMISE_DEFINITION(TYPE, CLS)  extern DEFINE_DECLARED(TYPE, CLS);
+// #define DEFINE_DECLARED(TYPE, CLS)  template TYPE CLS##_<>;
 
 
 /// These are some logging macros

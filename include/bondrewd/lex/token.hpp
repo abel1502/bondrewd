@@ -6,6 +6,9 @@
 
 #include <variant>
 #include <cstdint>
+#include <string_view>
+#include <iostream>
+#include <iomanip>
 
 
 namespace bondrewd::lex {
@@ -16,7 +19,6 @@ enum class TokenType {
     name,
     number,
     string,
-    // newline,
     keyword,
     punct,
 };
@@ -32,7 +34,7 @@ public:
 
     TOKEN_FACTORY_(EndmarkerValue, endmarker, MACRO_PASS(), MACRO_PASS())
     TOKEN_FACTORY_(NameValue, name, MACRO_PASS(std::string_view value,), MACRO_PASS(std::move(value)))
-    TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(uint64_t value,), MACRO_PASS(value))
+    TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(int64_t value,), MACRO_PASS(value))
     TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(double value,), MACRO_PASS(value))
     TOKEN_FACTORY_(StringValue, string, MACRO_PASS(std::string_view value, char quote_char,), MACRO_PASS(std::move(value), quote_char))
     TOKEN_FACTORY_(KeywordValue, keyword, MACRO_PASS(HardKeyword value,), MACRO_PASS(value))
@@ -58,16 +60,24 @@ protected:
 
     struct NumberValue {
         std::variant<
-            uint64_t,
+            int64_t,
             double
         > value;
 
         constexpr bool is_int() const noexcept {
-            return std::holds_alternative<uint64_t>(value);
+            return std::holds_alternative<int64_t>(value);
         }
 
         constexpr bool is_float() const noexcept {
             return std::holds_alternative<double>(value);
+        }
+
+        constexpr int64_t get_int() const noexcept {
+            return std::get<int64_t>(value);
+        }
+
+        constexpr double get_float() const noexcept {
+            return std::get<double>(value);
         }
     };
 
@@ -142,6 +152,47 @@ public:
 
     #undef TOKEN_TYPE_PREDICATE_
     #pragma endregion Predicates
+
+    #pragma region Debug
+    std::ostream &dump(std::ostream &stream) const {
+        switch (type) {
+        case TokenType::endmarker: {
+            stream << "ENDMARKER";
+        } break;
+        
+        case TokenType::name: {
+            stream << "NAME(" << get_name().value << ")";
+        } break;
+
+        case TokenType::number: {
+            stream << "NUMBER(";
+            // TODO
+            if (get_number().is_int()) {
+                stream << get_number().get_int();
+            } else {
+                stream << get_number().get_float();
+            }
+            stream << ")";
+        } break;
+
+        case TokenType::string: {
+            stream << "STRING(" << std::quoted(get_string().value) << ")";
+        } break;
+
+        case TokenType::keyword: {
+            stream << "KEYWORD(" << get_keyword().to_string() << ")";
+        } break;
+
+        case TokenType::punct: {
+            stream << "PUNCT(" << std::quoted(get_punct().to_string()) << ")";
+        } break;
+
+        NODEFAULT;
+        }
+
+        return stream;
+    }
+    #pragma endregion Debug
 
 protected:
     #pragma region Fields

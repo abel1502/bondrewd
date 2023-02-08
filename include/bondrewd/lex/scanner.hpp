@@ -114,7 +114,7 @@ public:
     }
     #pragma endregion Reading
 
-    #pragma region Moving
+    #pragma region Positioning
     void advance() {
         loc.advance(cur());
         ++buf_pos;
@@ -138,7 +138,7 @@ public:
         loc = pos.loc;
         cached_char = get_at(buf_pos);
     }
-    #pragma endregion Moving
+    #pragma endregion Positioning
 
     #pragma region Location
     const SrcLocation &get_loc() const {
