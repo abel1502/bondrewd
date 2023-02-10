@@ -1,26 +1,31 @@
 PYTHON ?= python
 
-ROOT := ./../
+# TODO: absolute paths?
+PROJECT_ROOT := ./../
+TOOLS_ROOT := ./../tools
 
-GENERATED_TOKENS_HPP := $(ROOT)/include/bondrewd/lex/tokens.generated.hpp 
-GENERATED_TOKENS_CPP := $(ROOT)/src/lex/tokens.generated.cpp
-GENERATED := $(GENERATED_TOKENS_HPP) $(GENERATED_TOKENS_CPP)
+CONFIG_GRAMMAR := $(PROJECT_ROOT)/grammar/bondrewd.grammar
+CONFIG_ASDL := $(PROJECT_ROOT)/grammar/bondrewd.grammar
+CONFIG_KEYWORDS := $(PROJECT_ROOT)/grammar/keywords
+CONFIG_PUNCTS := $(PROJECT_ROOT)/grammar/puncts
 
-CONFIG_GRAMMAR := $(ROOT)/grammar/bondrewd.grammar
-CONFIG_KEYWORDS := $(ROOT)/grammar/keywords
-CONFIG_PUNCTS := $(ROOT)/grammar/puncts
+CURRENT_PATH = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
+# Extended by generate.mk from each tool
+GENERATED := 
 
 
-all: $(GENERATED)
+all: _all
+
+
+include $(TOOLS_ROOT)/*/generate.mk
+
+
+_all: $(GENERATED)
 
 clean:
 	rm -f $(GENERATED)
 
 re: clean all
 
-$(GENERATED_TOKENS_HPP) $(GENERATED_TOKENS_CPP): $(CONFIG_KEYWORDS) $(CONFIG_PUNCTS) ./tokens/templates/tokens.tpl.hpp ./tokens/templates/tokens.tpl.cpp ./tokens/generate_tokens.py ./tokens/trie_gen.py
-	$(PYTHON) ./tokens/generate_tokens.py --keywords $(CONFIG_KEYWORDS) --puncts $(CONFIG_PUNCTS)
-
-# TODO: pegen++
-
-.PHONY: all clean re tokens
+.PHONY: all _all clean re
