@@ -137,6 +137,6 @@ class TrieInfo:
         assert trie._verdict_none in verdicts
         verdicts.remove(trie._verdict_none)
         
-        verdicts = [trie._verdict_none] + list(verdicts)
+        verdicts = [trie._verdict_none] + list(sorted(verdicts))
         
         return cls(verdicts, trie._root)

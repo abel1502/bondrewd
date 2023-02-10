@@ -4,11 +4,11 @@ import argparse
 import pathlib
 import textwrap
 import dataclasses
+from ast import literal_eval
 
 import sys
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
 from templated_codegen import *
-
 
 from trie_gen import Trie, TrieInfo
 
@@ -78,6 +78,7 @@ def read_listing(path: pathlib.Path) -> Listing:
 class TokensInfo:
     keywords: Listing
     puncts: Listing
+    punct_lookup_quoted: typing.Dict[str, str]
     punct_lookup: typing.Dict[str, str]
     misc_trie: TrieInfo
     string_trie: TrieInfo
@@ -85,7 +86,8 @@ class TokensInfo:
     
     @classmethod
     def process(cls, keywords: Listing, puncts: Listing) -> TokensInfo:
-        punct_lookup = {punct.value: punct.name for punct in puncts}
+        punct_lookup_quoted = {punct.value: punct.name for punct in puncts}
+        punct_lookup = {literal_eval(key): value for key, value in punct_lookup_quoted.items()}
         
         misc_trie = Trie()
         string_trie = Trie()
@@ -105,6 +107,7 @@ class TokensInfo:
         return cls(
             keywords,
             puncts,
+            punct_lookup_quoted,
             punct_lookup,
             TrieInfo.from_trie(misc_trie),
             TrieInfo.from_trie(string_trie),
