@@ -8,6 +8,7 @@ _DEPENDENCIES := \
 	$(CURRENT_PATH)/templates/tokens.tpl.cpp \
 	$(CURRENT_PATH)/generate_tokens.py \
 	$(CURRENT_PATH)/trie_gen.py \
+	$(TOOLS_ROOT)/templated_codegen/__init__.py \
 	$(CONFIG_KEYWORDS) \
 	$(CONFIG_PUNCTS)
 

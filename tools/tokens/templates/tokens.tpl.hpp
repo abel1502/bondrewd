@@ -13,16 +13,16 @@ namespace bondrewd::lex {
 
 
 enum class Punct {
-    {% for punct in tokens_info.puncts -%}
-        {{ punct.name }} = {{ loop.index0 }},
-    {% endfor %}
+{%- for punct in tokens_info.puncts %}
+    {{ punct.name }} = {{ loop.index0 }},
+{%- endfor %}
 };
 
 
 enum class HardKeyword {
-    {% for keyword in tokens_info.keywords -%}
-        {{ keyword.name }} = {{ loop.index0 }},
-    {% endfor %}
+{%- for keyword in tokens_info.keywords %}
+    {{ keyword.name }} = {{ loop.index0 }},
+{%- endfor %}
 };
 
 
@@ -35,29 +35,33 @@ extern const std::unordered_map<std::string_view, Punct> string_to_punct;
 extern const std::unordered_map<std::string_view, HardKeyword> string_to_keyword;
 
 
-{% macro _walk_trie_node(node) %}
+{%- macro _walk_trie_node(node, depth=0) %}
     switch (scanner.cur()) {
-        {% for ch, child_node in node.children.items() %}
-            case '{{ ch | cpp_escape }}': {
-                scanner.advance();
-                {{ _walk_trie_node(child_node, caller=caller) }}
-            } break;
-        {% endfor %}
-        default: {
-            {{ caller(node) }}
-        } break;
+    {%- for ch, child_node in node.children.items() %}
+    case '{{ ch | cpp_escape }}': {
+        scanner.advance();
+        {% filter indent(width=4) %}
+        {{- _walk_trie_node(child_node, caller=caller) }}
+        {%- endfilter %}
+    } break;
+    {%- endfor %}
+    default: {
+        {%- filter indent(width=0) %}
+        {{- caller(node) }}
+        {%- endfilter %}
+    } break;
     }
-{% endmacro -%}
+{%- endmacro %}
 
 
-{%- macro gen_trie(name, trie_info, extra_args="") -%}
+{%- macro gen_trie(name, trie_info, extra_args="") %}
 class {{ name }} {
 public:
     #pragma region Verdicts
     enum class Verdict {
-        {% for verdict in trie_info.verdicts -%}
-            {{ verdict }} = {{ loop.index0 }},
-        {% endfor %}
+        {%- for verdict in trie_info.verdicts %}
+        {{ verdict }} = {{ loop.index0 }},
+        {%- endfor %}
     };
     #pragma endregion Verdicts 
 
@@ -76,49 +80,51 @@ public:
     Verdict feed(Scanner &scanner{{ ', ' if extra_args }}{{ extra_args }}) {
         auto start_pos = scanner.tell();
 
-        {%- set payload = caller -%}
-        {% call(node) _walk_trie_node(trie_info.root) %}
-            {%- set accepted_node = node.rollback -%}
-            // "{{ accepted_node.word | cpp_escape }}"
-            {% if node != accepted_node -%}
-            scanner.seek(start_pos);
-            scanner.advance({{ accepted_node.word | length }});
-            {%- endif -%}
-            {{ payload(accepted_node) }}
-            return Verdict::{{ accepted_node.verdict }};
-        {% endcall %}
+        {%- set payload = caller %}
+        {%- call(node) _walk_trie_node(trie_info.root) %}
+        {%- set accepted_node = node.rollback %}
+        // "{{ accepted_node.word | cpp_escape }}"
+        {%- if node != accepted_node %}
+        scanner.seek(start_pos);
+        scanner.advance({{ accepted_node.word | length }});
+        {%- endif %}
+        {%- filter indent(width=4) %}
+        {{- payload(accepted_node) }}
+        {%- endfilter %}
+        return Verdict::{{ accepted_node.verdict }};
+        {%- endcall %}
     }
     #pragma endregion Interface
 
 };
 
-{%- endmacro -%}
+{%- endmacro %}
 
 
 {% call(node) gen_trie("MiscTrie", tokens_info.misc_trie, extra_args="Punct *punct, char *quote") %}
-    {% if node.verdict == "string_quote" %}
-        if (quote) {
-            *quote = '{{ node.word | cpp_escape }}';
-        }
-    {% elif node.verdict == "punct" %}
-        if (punct) {
-            *punct = Punct::{{ tokens_info.punct_lookup[node.word] }};  // TODO
-        }
-    {% endif %}
+    {%- if node.verdict == "string_quote" %}
+    if (quote) {
+        *quote = '{{ node.word | cpp_escape }}';
+    }
+    {%- elif node.verdict == "punct" %}
+    if (punct) {
+        *punct = Punct::{{ tokens_info.punct_lookup[node.word] }};  // TODO
+    }
+    {%- endif %}
 {% endcall %}
 
 
 {% call(node) gen_trie("StringTrie", tokens_info.string_trie, extra_args="char *quote, int *escape") %}
-    {% if node.verdict == "end_quote" %}
+    {%- if node.verdict == "end_quote" %}
         if (quote) {
             *quote = '{{ node.word | cpp_escape }}';
         }
-    {% elif node.verdict == "escape" %}
+    {%- elif node.verdict == "escape" %}
         if (escape) {
             *escape = scanner.cur();
             scanner.advance();
         }
-    {% endif %}
+    {%- endif %}
 {% endcall %}
 
 
@@ -127,4 +133,3 @@ public:
 
 
 }  // namespace bondrewd::lex
-

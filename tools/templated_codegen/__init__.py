@@ -58,6 +58,7 @@ def make_env(template_dir: pathlib.Path | str | None = None) -> jinja2.Environme
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(template_dir),
         autoescape=False,
+        keep_trailing_newline=True,
     )
     
     env.filters["cpp_escape"] = lambda s: codecs.encode(s, "unicode_escape").decode("ascii")\

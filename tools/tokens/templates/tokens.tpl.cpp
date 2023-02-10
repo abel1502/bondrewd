@@ -40,4 +40,3 @@ const std::unordered_map<std::string_view, HardKeyword> string_to_keyword = {
 
 
 } // namespace bondrewd::lex
-
