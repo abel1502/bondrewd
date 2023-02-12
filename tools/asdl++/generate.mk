@@ -7,7 +7,7 @@ _DEPENDENCIES := \
 	$(_ASDL_PATH)/templates/ast_nodes.tpl.hpp \
 	$(_ASDL_PATH)/asdl.py \
 	$(_ASDL_PATH)/asdl_cpp.py \
-	$(TOOLS_ROOT)/jinja_codegen/jinja_codegen.py \
+	$(TOOLS_ROOT)/jinja_codegen.py \
 	$(CONFIG_ASDL)
 
 

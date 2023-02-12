@@ -7,7 +7,7 @@ import dataclasses
 from ast import literal_eval
 
 import sys
-sys.path.append(str(pathlib.Path(__file__).parent.parent / "jinja_codegen"))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 from jinja_codegen import *
 
 from trie_gen import Trie, TrieInfo

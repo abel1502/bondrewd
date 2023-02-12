@@ -9,7 +9,7 @@ from ast import literal_eval
 from contextlib import contextmanager
 
 import sys
-sys.path.append(str(pathlib.Path(__file__).parent.parent / "jinja_codegen"))
+sys.path.append(str(pathlib.Path(__file__).parent.parent))
 from jinja_codegen import *
 
 import asdl
