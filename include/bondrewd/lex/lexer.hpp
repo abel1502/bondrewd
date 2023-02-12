@@ -185,6 +185,10 @@ public:
     };
     #pragma endregion Proxies
     
+    // TODO: Wrappers for these on the parser level.
+    //       Strictly speaking, these are only the atomic versions
+    //       of the lookahead/expect methods.
+    
     /**
      * Usage examples:
      *  - `.expect().token(TokenType::keyword)`
@@ -202,21 +206,19 @@ public:
      *  - `.lookahead(false).keyword(HardKeyword::if)`
      *  - `.lookahead(true).punct(Punct::semicolon)`
      *  - `.lookahead(false).soft_keyword("aboba")`
+     * 
+     * Can also be used as a reset-guard:
+     * ```
+     * {
+     *     auto guard = lexer.lookahead(true);  // or false, doesn't matter
+     * 
+     *     ...
+     * }
+     * ```
      */
     auto lookahead(bool positive) {
         return _LookaheadProxy{this, positive};
     }
-    
-    // template <auto F>
-    // bool lookahead(bool positive, auto &&... args) {
-    //     state_t pos = tell();
-
-    //     bool result = (bool)F(std::forward<decltype(args)>(args)...);
-
-    //     seek(pos);
-
-    //     return result == positive;
-    // }
     #pragma endregion Expecting
 
 protected:
