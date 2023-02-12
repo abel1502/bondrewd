@@ -73,15 +73,19 @@ public:
 
         const size_t size = tokens.size();
         for (size_t i = 0; i < size; ++i) {
+            if (i > 0) {
+                stream << " ";
+            }
+
             tokens[i].dump(stream);
             
             if (i == index) {
                 stream << " *";
             }
+        }
 
-            if (i < size - 1) {
-                stream << " ";
-            }
+        if (!at_end()) {
+            stream << " ...";
         }
 
         stream << "])";
