@@ -32,21 +32,21 @@ parser.add_argument(
     "-k", "--keywords",
     type=pathlib.Path,
     help="The path to the keywords listing file.",
-    default=pathlib.Path(__file__).parent.parent.parent / "grammar/keywords",
+    default=PROJECT_ROOT / "grammar/keywords",
 )
 
 parser.add_argument(
     "-p", "--puncts",
     type=pathlib.Path,
     help="The path to the punctuations listing file.",
-    default=pathlib.Path(__file__).parent.parent.parent / "grammar/puncts",
+    default=PROJECT_ROOT / "grammar/puncts",
 )
 
 parser.add_argument(
     "-o", "--output",
     type=pathlib.Path,
     help="The path to the root of the interpreter directory.",
-    default=pathlib.Path(__file__).parent.parent.parent,
+    default=PROJECT_ROOT,
 )
 
 

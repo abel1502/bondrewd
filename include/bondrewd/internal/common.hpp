@@ -40,8 +40,8 @@
 
 
 /// These are some logging macros
-#define ERR(msg, ...)  bondrewd::_dbg(true,  1, __func__, __LINE__, msg, ##__VA_ARGS__)
-#define DBG(msg, ...)  bondrewd::_dbg(false, 2, __func__, __LINE__, msg, ##__VA_ARGS__)
+#define ERR(msg, ...)  bondrewd::util::_dbg(true,  1, __func__, __LINE__, msg, ##__VA_ARGS__)
+#define DBG(msg, ...)  bondrewd::util::_dbg(false, 2, __func__, __LINE__, msg, ##__VA_ARGS__)
 
 
 /// This is a macro to facilitate exception declaraion
@@ -61,15 +61,26 @@
     }
 
 
-namespace bondrewd {
+namespace bondrewd::util {
 
 
 // DECLARE_ERROR(error, std::runtime_error)
 
 
-extern int _log_verbosity;
+extern int log_verbosity;
 
 void _dbg(bool isError, int level, const char* func_name, int line_no, const char* msg, ...);
+
+
+template <typename, template<typename ...> typename>
+constexpr bool _is_specialization = false;
+
+template <template<typename ...> typename T, typename ... Args>
+constexpr bool _is_specialization<T<Args...>, T> = true;
+
+
+template <typename T, template<typename ...> typename Tpl>
+concept specialization_of = _is_specialization<T, Tpl>;
 
 
 }  // namespace bondrewd

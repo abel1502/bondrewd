@@ -5,10 +5,10 @@
 #include <cerrno>
 
 
-namespace bondrewd {
+namespace bondrewd::util {
 
 
-int _log_verbosity = 0;
+int log_verbosity = 0;
 
 void _dbg(bool isError, int level, const char* func_name, int line_no, const char *msg, ...) {
     va_list args = {};
@@ -16,10 +16,10 @@ void _dbg(bool isError, int level, const char* func_name, int line_no, const cha
 
     if (_log_verbosity >= level) {
         fprintf(stderr, "[%s in %s() on #%d] ", isError ? "ERROR" : "DBG", func_name, line_no);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wformat-nonliteral"
         vfprintf(stderr, msg, args);
-#pragma GCC diagnostic pop
+        #pragma GCC diagnostic pop
         fprintf(stderr, "\n");
         if (errno != 0 && isError) {
             perror("System error");

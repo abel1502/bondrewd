@@ -1,10 +1,46 @@
 -- ASDL file for the Bondrewd language.
 -- This defines the AST structure for it.
 
--- Builtin types:
+-- Builtin types:  (TODO: Add more, as needed)
 -- identifier, int, string, constant
 
 
 module Bondrewd {
-    -- TODO
+    -- TODO: Very much incomplete
+    cartridge = Cartridge(declaration* body)
+
+    declaration = FuncDef(identifier name, arguments args, stmt* body)
+                | VarDef()
+    
+    stmt = For()
+         | While()
+         | Decl(declaration value)
+         | Assign(expr target, expr value)
+         | Expr(expr value)
+         | Pass
+    
+    expr = Name(identifier value)
+         | Constant(constant value)
+         | Call(expr func, expr* args)
+         | Block(stmt* body)
+         | BinOp(expr left, binary_op op, expr right)
+         | UnOp(unary_op op, expr operand)
+         | Compare(expr left, cmp_op* op, expr* operands)
+         | BoolOp(expr left, bool_op op, expr right)
+         | If(expr cond, expr body, expr? orelse)
+         | Return(expr? value)
+         | Break
+    
+    bool_op = And | Or
+
+    binary_op = Add | Sub | Mul | Div | Mod | LShift | RShift | BitOr | BitXor | BitAnd | BidirCmp
+
+    unary_op = BitInv | Not | UAdd | USub
+
+    cmp_op = Eq | NotEq | Lt | LtE | Gt | GtE | In | NotIn
+
+    arguments = (arg* args)
+
+    arg = (identifier name, expr type)
+
 }
