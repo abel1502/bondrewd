@@ -9,7 +9,7 @@ _DEPENDENCIES := \
 	$(_TOKENS_PATH)/templates/tokens.tpl.cpp \
 	$(_TOKENS_PATH)/generate_tokens.py \
 	$(_TOKENS_PATH)/trie_gen.py \
-	$(TOOLS_ROOT)/templated_codegen/__init__.py \
+	$(TOOLS_ROOT)/jinja_codegen/jinja_codegen.py \
 	$(CONFIG_KEYWORDS) \
 	$(CONFIG_PUNCTS)
 
