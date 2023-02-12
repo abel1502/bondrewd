@@ -7,14 +7,12 @@
 
 module Bondrewd {
     -- TODO: Very much incomplete
-    cartridge = Cartridge(declaration* body)
+    cartridge = Cartridge(stmt* body)
 
-    declaration = FuncDef(identifier name, arguments args, stmt* body)
-                | VarDef()
-    
     stmt = For()
          | While()
-         | Decl(declaration value)
+         | FuncDef(identifier name, arguments args, stmt* body)
+         | VarDef()
          | Assign(expr target, expr value)
          | Expr(expr value)
          | Pass
