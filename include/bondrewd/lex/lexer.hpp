@@ -25,9 +25,9 @@ public:
     #pragma endregion Constructors
 
     #pragma region Service constructors
-    Lexer(const Lexer &) = default;
+    Lexer(const Lexer &) = delete;
     Lexer(Lexer &&) = default;
-    Lexer &operator=(const Lexer &) = default;
+    Lexer &operator=(const Lexer &) = delete;
     Lexer &operator=(Lexer &&) = default;
     #pragma endregion Service constructors
 
@@ -94,8 +94,8 @@ public:
     #pragma region Proxies
     struct _ExpectProxy {
     public:
-        _ExpectProxy(Lexer *lexer) :
-            lexer{lexer} {}
+        _ExpectProxy(Lexer *lexer_) :
+            lexer{lexer_} {}
         
         _ExpectProxy(const _ExpectProxy &) = default;
         _ExpectProxy(_ExpectProxy &&) = default;
@@ -152,8 +152,8 @@ public:
 
     struct _LookaheadProxy : private _ExpectProxy {
     public:
-        _LookaheadProxy(Lexer *lexer, bool positive) :
-            _ExpectProxy(lexer),
+        _LookaheadProxy(Lexer *lexer_, bool positive) :
+            _ExpectProxy(lexer_),
             state{lexer->tell()},
             positive{positive} {}
         

@@ -12,7 +12,9 @@ set(CXX_WARNING_FLAGS "\
     -Wno-sign-conversion -Wno-extra-semi-stmt \
     -Wno-gnu-zero-variadic-macro-arguments \
     -Wno-covered-switch-default -Wno-exit-time-destructors \
-    -Wno-global-constructors \
+    -Wno-global-constructors -Wno-reserved-identifier \
+    -Wno-extra-semi -Wno-unreachable-code-break \
+    \
 ")
 
 set(CXX_OPTIMIZE_FLAGS "-O2")

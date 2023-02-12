@@ -14,7 +14,7 @@ void _dbg(bool isError, int level, const char* func_name, int line_no, const cha
     va_list args = {};
     va_start(args, msg);
 
-    if (_log_verbosity >= level) {
+    if (log_verbosity >= level) {
         fprintf(stderr, "[%s in %s() on #%d] ", isError ? "ERROR" : "DBG", func_name, line_no);
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
