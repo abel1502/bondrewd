@@ -33,14 +33,28 @@ int64_t Tokenizer::extract_integer(std::string_view digits, unsigned base, const
     // Digits are assumed to be correct
 
     int64_t result = 0;
+    bool allow_underscores = false;
 
-    for (auto digit : digits) {
-        // TODO: Maybe make MSVC-compatible
+    for (char digit : digits) {
+        if (digit == '_') {
+            if (!allow_underscores)
+                error("Invalid underscore in integer literal", loc);
+            
+            allow_underscores = false;
+            continue;
+        }
+
+        // TODO: Maybe make MSVC-compatible?
         if (__builtin_mul_overflow(result, base, &result))
             error("Integer literal too large", loc);
         if (__builtin_add_overflow(result, evaluate_digit(digit, base), &result))
             error("Integer literal too large", loc);
+        
+        allow_underscores = true;
     }
+
+    if (!allow_underscores)
+        error("Invalid underscore in integer literal", loc);
 
     return result;
 }
@@ -112,9 +126,9 @@ void Tokenizer::parse_number() {
         }
     }
 
-    std::string_view integral_part = scanner.read_while(
-        [base](int c) { return evaluate_digit(c, base) >= 0; }
-    );
+    const auto pred_digit = [base](int c) { return c == '_' || evaluate_digit(c, base) >= 0; };
+
+    std::string_view integral_part = scanner.read_while(pred_digit);
 
     bool is_integer = true;
 
@@ -128,14 +142,15 @@ void Tokenizer::parse_number() {
         scanner.advance();
         is_integer = false;
 
-        fraction_part = scanner.read_while(
-            [base](int c) { return evaluate_digit(c, base) >= 0; }
-        );
+        fraction_part = scanner.read_while(pred_digit);
     }
 
-    if (base == 10 \
-        && (!fraction_part.empty() || !integral_part.empty()) \
-        && (scanner.cur() == 'E' || scanner.cur() == 'e')) {
+    if ((base <= 10 && (scanner.cur() == 'E' || scanner.cur() == 'e')) || \
+        (base == 16 && (scanner.cur() == 'P' || scanner.cur() == 'p'))) {
+        
+        if (fraction_part.empty() && integral_part.empty()) {
+            error("Invalid floating point literal", start_pos.loc);
+        }
 
         scanner.advance();
         is_integer = false;
@@ -155,8 +170,7 @@ void Tokenizer::parse_number() {
             break;
         }
 
-        // Fine since we're always in base 10 here
-        exp_part = scanner.read_while<is_digit>();
+        exp_part = scanner.read_while(pred_digit);
     }
 
     if (is_integer && integral_part.empty()) {
