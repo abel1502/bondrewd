@@ -34,6 +34,20 @@ public:
     Tokenizer &operator=(Tokenizer &&) = default;
     #pragma endregion Service constructors
 
+    #pragma region Factories
+    static Tokenizer from_stream(std::istream &input, std::string_view filename = "") {
+        return Tokenizer{Scanner::from_stream(input, filename)};
+    }
+
+    static Tokenizer from_string(std::string_view input, std::string_view filename = "") {
+        return Tokenizer{Scanner::from_string(input, filename)};
+    }
+
+    static Tokenizer from_file(std::filesystem::path filename) {
+        return Tokenizer{Scanner::from_file(filename)};
+    }
+    #pragma endregion Factories
+
     #pragma region Interface
     /**
      * Get the next token from the input stream.
