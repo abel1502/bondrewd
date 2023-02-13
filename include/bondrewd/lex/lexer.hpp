@@ -68,10 +68,12 @@ public:
     #pragma region Positioning
     void advance() {
         ++index;
+        ensure_total(index + 1);
     }
 
     void advance(size_t count) {
         index += count;
+        ensure_total(index + 1);
     }
 
     state_t tell() const {

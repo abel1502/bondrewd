@@ -154,7 +154,7 @@ public:
     #pragma endregion Predicates
 
     #pragma region Debug
-    std::ostream &dump(std::ostream &stream) const {
+    std::ostream &dump(std::ostream &stream = std::cout) const {
         switch (type) {
         case TokenType::endmarker: {
             stream << "ENDMARKER";

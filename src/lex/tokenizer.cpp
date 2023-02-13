@@ -86,7 +86,7 @@ double Tokenizer::extract_float(std::string_view integral_part,
     if (exponent_sign != 0) {
         int64_t exponent = extract_integer(exponent_part, base, loc);
 
-        result *= std::exp2(exponent_sign * exponent);
+        result *= std::pow((double)base, exponent_sign * exponent);
     }
 
     return result;

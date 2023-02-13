@@ -76,7 +76,7 @@ protected:
     }
 
     static bool is_digit(int c) {
-        return 0 <= c && c <= 9;
+        return '0' <= c && c <= '9';
     }
 
     static bool is_hex_digit(int c) {
