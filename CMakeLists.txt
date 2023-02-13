@@ -4,7 +4,7 @@ project(bondrewd CXX)
 # set(CMAKE_CXX_COMPILER clang++-cl)
 set(CMAKE_CXX_STANDARD_REQUIRED 20)
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_EXTENSIONS false)
+# set(CMAKE_CXX_EXTENSIONS false)
 
 set(CXX_WARNING_FLAGS "\
     -Wall -Wno-multichar -Wno-c++98-compat-pedantic \
@@ -28,7 +28,6 @@ else()
     set(CXX_OS_FLAGS "-g")
 endif()
 
-set(CMAKE_EXE_LINKER_FLAGS "-m64")
 set(CMAKE_CXX_FLAGS "${CXX_WARNING_FLAGS} -m64 -march=native ${CXX_OPTIMIZE_FLAGS} ${CXX_OS_FLAGS}")
 
 
@@ -43,5 +42,15 @@ add_library(bondrewd-compiler STATIC ${LIB_SOURCES})
 target_include_directories(bondrewd-compiler PUBLIC ${LIB_ROOT}/include)
 target_include_directories(bondrewd-compiler PRIVATE ${LIB_ROOT}/src)  # TODO: Do I need this?
 
+set_target_properties(bondrewd-compiler PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${LIB_ROOT}/out"
+    ARCHIVE_OUTPUT_DIRECTORY "${LIB_ROOT}/out"
+)
+
 find_package(fmt CONFIG REQUIRED)
 target_link_libraries(bondrewd-compiler PRIVATE fmt::fmt)
+
+# find_package(Boost 1.81.0 REQUIRED COMPONENTS)
+# target_link_libraries(bondrewd-compiler PRIVATE)
+
+add_subdirectory(cli)

@@ -5,4 +5,5 @@ __pycache__
 # *.generated.*
 
 /build
+/out
 /CMakeSettings.json
