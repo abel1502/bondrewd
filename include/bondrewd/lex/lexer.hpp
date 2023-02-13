@@ -31,6 +31,20 @@ public:
     Lexer &operator=(Lexer &&) = default;
     #pragma endregion Service constructors
 
+    #pragma region Factories
+    static Lexer from_stream(std::istream &input, std::string_view filename = "") {
+        return Lexer{Tokenizer::from_stream(input, filename)};
+    }
+
+    static Lexer from_string(std::string_view input, std::string_view filename = "") {
+        return Lexer{Tokenizer::from_string(input, filename)};
+    }
+
+    static Lexer from_file(std::filesystem::path filename) {
+        return Lexer{Tokenizer::from_file(filename)};
+    }
+    #pragma endregion Factories
+
     #pragma region Token access
     Token &cur() const {
         return get_at(index);
@@ -44,6 +58,10 @@ public:
     #pragma region End checking
     bool at_end() const {
         return !tokens.empty() && tokens.back().is_endmarker();
+    }
+
+    operator bool() const {
+        return !at_end();
     }
     #pragma endregion End checking
 
@@ -68,7 +86,7 @@ public:
     #pragma endregion Positioning
 
     #pragma region Debug
-    std::ostream &dump(std::ostream &stream) const {
+    std::ostream &dump(std::ostream &stream = std::cout) const {
         stream << "Lexer([";
 
         const size_t size = tokens.size();
