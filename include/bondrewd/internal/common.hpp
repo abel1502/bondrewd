@@ -83,4 +83,4 @@ template <typename T, template<typename ...> typename Tpl>
 concept specialization_of = _is_specialization<T, Tpl>;
 
 
-}  // namespace bondrewd
+}  // namespace bondrewd::util
