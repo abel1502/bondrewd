@@ -5,8 +5,13 @@
 
 #include <string>
 #include <string_view>
-#include <iostream>
+#include <iterator>
+#include <concepts>
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <filesystem>
+#include <cctype>
 
 
 namespace bondrewd::lex {
@@ -15,9 +20,6 @@ namespace bondrewd::lex {
 class Scanner {
 public:
     #pragma region Constants and typedefs
-    static constexpr size_t BUF_DEFAULT_CAPACITY = 4096;
-    static constexpr size_t CHUNK_SIZE = 1024;
-
     static constexpr int end_of_file = EOF;
 
     struct state_t {
@@ -41,11 +43,9 @@ public:
     #pragma endregion Constants and typedefs
 
     #pragma region Constructors
-    Scanner(std::istream &input, std::string_view filename = "") :
-        input_ptr{&input}, loc{filename, 0, 0} {
-        
-        buf.reserve(BUF_DEFAULT_CAPACITY);
-        pull_chunk();
+    template <std::input_iterator I, std::sentinel_for<I> S>
+    Scanner(I src, S end, std::string_view filename = "") :
+        buf{std::move(src), std::move(end)}, loc{filename, 0, 0} {
 
         cached_char = get_at(buf_pos);
     }
@@ -57,6 +57,24 @@ public:
     Scanner &operator=(const Scanner &) = delete;
     Scanner &operator=(Scanner &&) = default;
     #pragma endregion Service constructors
+
+    #pragma region Factories
+    static Scanner from_stream(std::istream &input, std::string_view filename = "") {
+        using iter = std::istream_iterator<char>;
+
+        return Scanner{iter{input}, iter{}, filename};
+    }
+
+    static Scanner from_string(std::string_view input, std::string_view filename = "") {
+        return Scanner{input.begin(), input.end(), filename};
+    }
+
+    static Scanner from_file(std::filesystem::path filename) {
+        std::ifstream stream{filename};
+
+        return from_stream(stream, filename.string());
+    }
+    #pragma endregion Factories
 
     #pragma region Reading
     int cur() const {
@@ -98,7 +116,7 @@ public:
     }
 
     void skip_space() {
-        read_while<std::isspace>();
+        read_while<isspace>();
     }
 
     std::string_view skip_line() {
@@ -158,50 +176,14 @@ public:
 
 protected:
     #pragma region Fields
-    std::istream *input_ptr;
-    mutable std::vector<char> buf{};
+    std::vector<char> buf{};
     size_t buf_pos{0};
     SrcLocation loc;
     int cached_char{end_of_file};
-
-    /// This workaround is needed for the class to be movable
-    constexpr std::istream &input() const {
-        return *input_ptr;
-    }
     #pragma endregion Fields
-
-    #pragma region Pulling
-    void pull_chunk() const {
-        if (!input()) {
-            return;
-        }
-
-        buf.resize(buf.size() + CHUNK_SIZE);
-        input().read(buf.data() + buf_pos, CHUNK_SIZE);
-        buf.resize(buf.size() + input().gcount());
-    }
-
-    void pull_all() const {
-        while (input()) {
-            pull_chunk();
-        }
-    }
-
-    void ensure_next(size_t amount = 1) const {
-        ensure_total(buf_pos + amount);
-    }
-
-    void ensure_total(size_t amount) const {
-        while (amount > buf.size() && input()) {
-            pull_chunk();
-        }
-    }
-    #pragma endregion Pulling
 
     #pragma region Reading
     int get_at(size_t pos) const {
-        ensure_total(pos + 1);
-
         if (pos >= buf.size()) {
             return end_of_file;
         }
