@@ -1,8 +1,8 @@
 _TOKENS_PATH := $(CURRENT_PATH)
 
 _GENERATED := \
-	$(PROJECT_ROOT)/include/bondrewd/lex/tokens.generated.hpp \
-	$(PROJECT_ROOT)/src/lex/tokens.generated.cpp
+	$(PROJECT_ROOT)/include/bondrewd/lex/tokens.gen.hpp \
+	$(PROJECT_ROOT)/src/lex/tokens.gen.cpp
 
 _DEPENDENCIES := \
 	$(_TOKENS_PATH)/templates/tokens.tpl.hpp \

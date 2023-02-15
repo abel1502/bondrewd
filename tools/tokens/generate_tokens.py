@@ -23,8 +23,8 @@ parser = argparse.ArgumentParser(
     The script responsible for generating several token-related source files.
     
     More precisely, the script generates the following files:
-     - include/bondrewd/lex/tokens.generated.hpp
-     - src/lex/tokens.generated.cpp
+     - include/bondrewd/lex/tokens.gen.hpp
+     - src/lex/tokens.gen.cpp
     """)
 )
 
@@ -132,14 +132,14 @@ def main():
     render_tpl(
         env,
         "tokens.tpl.hpp",
-        output_dir / "include/bondrewd/lex/tokens.generated.hpp",
+        output_dir / "include/bondrewd/lex/tokens.gen.hpp",
         tokens_info=tokens_info
     )
     
     render_tpl(
         env,
         "tokens.tpl.cpp",
-        output_dir / "src/lex/tokens.generated.cpp",
+        output_dir / "src/lex/tokens.gen.cpp",
         tokens_info=tokens_info
     )
 

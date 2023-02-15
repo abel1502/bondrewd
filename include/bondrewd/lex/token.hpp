@@ -2,7 +2,7 @@
 
 #include <bondrewd/internal/common.hpp>
 #include <bondrewd/lex/src_location.hpp>
-#include <bondrewd/lex/tokens.generated.hpp>
+#include <bondrewd/lex/tokens.gen.hpp>
 
 #include <variant>
 #include <cstdint>

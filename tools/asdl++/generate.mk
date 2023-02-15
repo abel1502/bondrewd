@@ -1,7 +1,7 @@
 _ASDL_PATH := $(CURRENT_PATH)
 
 _GENERATED := \
-	$(PROJECT_ROOT)/include/bondrewd/ast/ast_nodes.generated.hpp
+	$(PROJECT_ROOT)/include/bondrewd/ast/ast_nodes.gen.hpp
 
 _DEPENDENCIES := \
 	$(_ASDL_PATH)/templates/ast_nodes.tpl.hpp \

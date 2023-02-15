@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser(
     The script responsible for generating several AST-related source files.
     
     More precisely, the script generates the following files:
-     - include/bondrewd/ast/ast_nodes.generated.hpp
+     - include/bondrewd/ast/ast_nodes.gen.hpp
     """)
 )
 
@@ -121,7 +121,7 @@ def main():
     render_tpl(
         env,
         "ast_nodes.tpl.hpp",
-        output_dir / "include/bondrewd/ast/ast_nodes.generated.hpp",
+        output_dir / "include/bondrewd/ast/ast_nodes.gen.hpp",
     )
 
 
