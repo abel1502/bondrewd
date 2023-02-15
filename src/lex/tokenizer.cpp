@@ -9,7 +9,7 @@ Token Tokenizer::get_token() {
     while (scanner) {
         scanner.skip_space();
 
-        if (is_digit(scanner.cur())) {
+        if (is_digit(scanner.cur()) || (scanner.cur() == '.' && is_digit(scanner.peek_next()))) {
             parse_number();
             return token;
         }
