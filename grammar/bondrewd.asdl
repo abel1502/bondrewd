@@ -1,9 +1,6 @@
 -- ASDL file for the Bondrewd language.
 -- This defines the AST structure for it.
 
--- Builtin types:  (TODO: Add more, as needed)
--- identifier, int, string, constant
-
 
 module Bondrewd {
     -- TODO: Very much incomplete
