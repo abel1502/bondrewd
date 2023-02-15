@@ -3,9 +3,9 @@
 #include <bondrewd/internal/common.hpp>
 #include <bondrewd/lex/scanner.hpp>
 #include <bondrewd/lex/token.hpp>
+#include <bondrewd/lex/error.hpp>
 
 #include <cctype>
-#include <exception>
 #include <fmt/core.h>
 #include <ranges>
 #include <cmath>
@@ -13,11 +13,6 @@
 
 
 namespace bondrewd::lex {
-
-
-// TODO: Add location info!
-// (Either to the error or to the lexer state)
-DECLARE_ERROR(LexicalError, std::runtime_error);
 
 
 class Tokenizer {
