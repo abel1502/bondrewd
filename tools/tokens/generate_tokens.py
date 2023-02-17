@@ -2,7 +2,6 @@ from __future__ import annotations
 import typing
 import argparse
 import pathlib
-import textwrap
 import dataclasses
 from ast import literal_eval
 
@@ -18,15 +17,13 @@ BLOCK_COMMENT: typing.Final[typing.Tuple[str, str]] = ("/*", "*/")
 STRING_QUOTES: typing.Final[typing.Collection[str]] = ("'", '"')
 
 
-parser = argparse.ArgumentParser(
-    description=textwrap.dedent("""
-    The script responsible for generating several token-related source files.
-    
-    More precisely, the script generates the following files:
-     - include/bondrewd/lex/tokens.gen.hpp
-     - src/lex/tokens.gen.cpp
-    """)
-)
+parser = argparse.ArgumentParser("""\
+The script responsible for generating several token-related source files.
+
+More precisely, the script generates the following files:
+    - include/bondrewd/lex/tokens.gen.hpp
+    - src/lex/tokens.gen.cpp
+""")
 
 parser.add_argument(
     "-k", "--keywords",

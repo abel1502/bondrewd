@@ -3,7 +3,6 @@ from __future__ import annotations
 import typing
 import argparse
 import pathlib
-import textwrap
 import dataclasses
 from ast import literal_eval
 from contextlib import contextmanager
@@ -15,14 +14,12 @@ from jinja_codegen import *
 import asdl
 
 
-parser = argparse.ArgumentParser(
-    description=textwrap.dedent("""
-    The script responsible for generating several AST-related source files.
-    
-    More precisely, the script generates the following files:
-     - include/bondrewd/ast/ast_nodes.gen.hpp
-    """)
-)
+parser = argparse.ArgumentParser("""\
+The script responsible for generating several AST-related source files.
+
+More precisely, the script generates the following files:
+    - include/bondrewd/ast/ast_nodes.gen.hpp
+""")
 
 parser.add_argument(
     "-a", "--asdl",

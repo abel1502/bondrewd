@@ -51,7 +51,7 @@ def _get_autogen_label(tool_name: str | None = None) -> str:
     )
 
 
-def make_env(template_dir: pathlib.Path | str | None = None) -> jinja2.Environment:
+def make_env(template_dir: pathlib.Path | str | None = None, **kwargs) -> jinja2.Environment:
     if template_dir is None:
         template_dir = _get_tool_path().parent / "templates"
     
@@ -59,6 +59,8 @@ def make_env(template_dir: pathlib.Path | str | None = None) -> jinja2.Environme
         loader=jinja2.FileSystemLoader(template_dir),
         autoescape=False,
         keep_trailing_newline=True,
+        line_statement_prefix="##",
+        **kwargs,
     )
     
     env.filters.update(dict(
