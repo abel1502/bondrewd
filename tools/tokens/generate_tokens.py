@@ -8,6 +8,7 @@ from ast import literal_eval
 import sys
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
 from jinja_codegen import *
+from token_listing import *
 
 from trie_gen import Trie, TrieInfo
 
@@ -45,30 +46,6 @@ parser.add_argument(
     help="The path to the root of the interpreter directory.",
     default=PROJECT_ROOT,
 )
-
-
-@dataclasses.dataclass
-class ListingItem:
-    name: str
-    value: str
-    
-    @classmethod
-    def from_line(cls, line: str) -> ListingItem:
-        name, value = line.strip().split(maxsplit=1)
-        return cls(name, value)
-
-
-Listing = typing.List[ListingItem]
-
-
-def read_listing(path: pathlib.Path) -> Listing:
-    with path.open("r") as f:
-        lines = f.readlines()
-    
-    lines = (line.strip() for line in lines)
-    lines = (line for line in lines if line and not line.startswith("#"))
-    
-    return [ListingItem.from_line(line) for line in lines]
 
 
 @dataclasses.dataclass
