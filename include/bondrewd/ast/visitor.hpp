@@ -5,6 +5,8 @@
 
 #include <concepts>
 #include <utility>
+#include <exception>
+#include <stdexcept>
 #include <fmt/core.h>
 
 
@@ -21,17 +23,23 @@ concept has_concrete_visit = requires(V visitor, T node) {
 };
 
 
-template <typename T>
+template <typename T, typename R = void>
 requires std::derived_from<T, VisitorBase<T>>
 class VisitorBase {
 public:
-    void visit(auto abstract_ast_node &node) {
-        node.accept(*self());
+    R visit(auto abstract_ast_node &node) {
+        std::visit(node.value, *self());
     }
 
-    void visit(auto concrete_ast_node &node) {
-        fmt::format("Visitor {} does not support concrete AST node {}",
-                    typeid(*self()).name(), typeid(node).name());
+    R visit(auto concrete_ast_node &node) {
+        throw std::runtime_error(fmt::format(
+            "Visitor {} does not support concrete AST node {}",
+            typeid(*self()).name(), typeid(node).name()
+        ));
+    }
+
+    R operator()(auto &node) {
+        visit(node);
     }
 
 protected:
@@ -52,15 +60,15 @@ public:
         std::apply([&](auto &child) {
             if constexpr (util::specialization_of<decltype(child), sequence>) {
                 for (auto &child : child) {
-                    child.accept(*self());
+                    self()->visit(child);
                 }
                 return;
             }
 
             if (child) {
-                child->accept(*self());
+                self()->visit(child);
             }
-        }, node.all_fields_tuple());
+        }, node.get_fields_tuple());
     }
 };
 

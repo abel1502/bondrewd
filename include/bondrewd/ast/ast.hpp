@@ -23,21 +23,10 @@ class _ConcreteASTNode {};
 #pragma endregion Base classes
 
 
+#pragma region AST helper class
 template <typename ... Alts>
 class _AST : public _AbstractASTNode {
 public:
-    #pragma region Accept
-    // TODO: Visitor concept?
-    template <typename V>
-    void accept(V &visitor) {
-        std::visit([&](auto &value) {
-            visitor.visit(value);
-        }, value);
-    }
-    #pragma endregion Accept
-
-    // TODO: Const visitor support?
-
     #pragma region Casting
     template <typename T>
     T &as() {
@@ -57,11 +46,11 @@ public:
     _AST &operator=(_AST &&) = default;
     #pragma endregion Service constructors
 
-protected:
     #pragma region Fields
-    std::variant<Alts...> value;  // TODO: public?
+    std::variant<Alts...> value;
     #pragma endregion Fields
 
+protected:
     #pragma region Constructors
     _AST() = default;
 
@@ -70,6 +59,7 @@ protected:
     #pragma endregion Constructors
 
 };
+#pragma endregion AST helper class
 
 
 #pragma region Concepts
