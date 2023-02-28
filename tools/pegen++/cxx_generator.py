@@ -41,21 +41,22 @@ from pegen.parser_generator import ParserGenerator
 # TODO: Implement the following:
 #       - `defer` helper
 #       - result_cast?
-HPP_PREFIX = """\
+HPP_PREFIX: typing.Final[str] = """\
+#pragma once
+
 #include <bondrewd/parser/parser_base.hpp>
 
 
-#pragma region Helpers
-namespace {
+namespace bondrewd::parse {
 
 
-// TODO
+"""
 
 
-}  // namespace
-#pragma endregion Helpers
+HPP_SUFFIX: typing.Final[str] = """
 
 
+}  // namespace bondrewd::parse
 """
 
 
@@ -103,9 +104,8 @@ class CXXCallMakerVisitor(GrammarVisitor):
     # Puncts and hard keywords.
     # Lookup from string to qualified name
     # (ex.: "=" -> "Punct::EQUAL")
-    string_tokens: typing.Dict[str, str]
+    tokens_to_names: typing.Dict[str, str]
     cache: typing.Dict[typing.Any, FunctionCall]
-    cleanup_statements: typing.List[str]
     
     def __init__(
         self,
@@ -113,9 +113,8 @@ class CXXCallMakerVisitor(GrammarVisitor):
         string_tokens: typing.Dict[str, str],
     ):
         self.gen = parser_generator
-        self.string_tokens = string_tokens
+        self.tokens_to_names = string_tokens
         self.cache = {}
-        self.cleanup_statements = []
 
     def string_token_helper(self, raw_value: str) -> FunctionCall:
         """
@@ -125,27 +124,27 @@ class CXXCallMakerVisitor(GrammarVisitor):
         value: str = literal_eval(raw_value)
         
         if not re.match(r"[a-zA-Z_]\w*\Z", value):  # punct
-            assert value in self.string_tokens, f"Not a valid punct: {raw_value}"
+            assert value in self.tokens_to_names, f"Not a valid punct: {raw_value}"
             
             return FunctionCall(
                 assigned_variable="_literal",
                 function=f"lexer.expect().punct",
-                arguments=[self.string_tokens[value]],
+                arguments=[self.tokens_to_names[value]],
                 comment=f"punct={value!r}",
             )
         
         if raw_value.endswith("'"):  # hard keyword
-            assert value in self.string_tokens, f"Not a valid hard keyword: {raw_value}"
+            assert value in self.tokens_to_names, f"Not a valid hard keyword: {raw_value}"
             
             return FunctionCall(
                 assigned_variable="_keyword",
                 function="lexer.expect().keyword",
-                arguments=[self.string_tokens[value]],
+                arguments=[self.tokens_to_names[value]],
                 comment=f"keyword={value!r}",
             )
         
         # soft keyword
-        assert value not in self.string_tokens, f"Not a valid soft keyword: {raw_value}"
+        assert value not in self.tokens_to_names, f"Not a valid soft keyword: {raw_value}"
         
         return FunctionCall(
             assigned_variable="_keyword",
@@ -310,5 +309,30 @@ class CXXCallMakerVisitor(GrammarVisitor):
 
 
 class CXXParserGenerator(ParserGenerator, GrammarVisitor):
-    # TODO: keywords, soft_keywords, puncts
-    pass
+    callmakervisitor: CXXCallMakerVisitor
+    debug: bool
+    skip_actions: bool
+    _varname_counter: int
+    
+    def __init__(
+        self,
+        grammar: grammar.Grammar,
+        tokens_to_names: typing.Dict[str, str],  # keywords and puncts
+        file: typing.Optional[typing.IO[typing.Text]],
+        debug: bool = False,
+        skip_actions: bool = False,
+    ):
+        # TODO: Encapsulate as a constant?
+        ParserGenerator.__init__(self, grammar, TOKEN_TYPES, file)
+        GrammarVisitor.__init__(self)
+        
+        self.callmakervisitor = CXXCallMakerVisitor(self, tokens_to_names)
+        self._varname_counter = 0
+        self.debug = debug
+        self.skip_actions = skip_actions
+
+    def add_level(self) -> None:
+        pass  # TODO: Maybe implement for recursion level tracking?
+
+    def remove_level(self) -> None:
+        pass
