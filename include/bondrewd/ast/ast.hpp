@@ -1,6 +1,7 @@
 #pragma once
 
 #include <bondrewd/internal/common.hpp>
+#include <bondrewd/internal/arena.hpp>
 
 #include <vector>
 #include <variant>
@@ -15,6 +16,11 @@
 
 
 namespace bondrewd::ast {
+
+
+#pragma region Arena
+extern util::Arena ast_arena;
+#pragma endregion Arena
 
 
 #pragma region Base classes
@@ -77,7 +83,7 @@ concept concrete_ast_node = std::derived_from<T, _ConcreteASTNode>;
 
 #pragma region Convenience aliases
 template <typename T>
-using field = std::unique_ptr<T>;
+using field = util::arena_ptr<T, &ast_arena>;
 
 
 template <typename T>
@@ -85,6 +91,18 @@ using sequence = std::vector<T>;
 
 
 // TODO: special helper for optional?
+
+
+template <typename T, typename ... As>
+field<T> make_field(As &&... args) {
+    return util::make_arena_ptr<T, &ast_arena>(std::forward<As>(args)...);
+}
+
+
+template <typename T, typename ... As>
+sequence<T> make_sequence(As &&... args) {
+    return sequence<T>{std::forward<As>(args)...};
+}
 #pragma endregion Convenience aliases
 
 
