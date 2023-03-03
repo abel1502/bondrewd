@@ -73,16 +73,21 @@ def main():
         p.value: p.name for p in puncts
     }
     
-    target_file: pathlib.Path = output_dir / "include/bondrewd/parse/parser.gen.hpp"
+    target_file: pathlib.Path = 
     
-    with target_file.open("w") as f:
-        generator = CXXParserGenerator(
-            grammar,
-            tokens_to_names,
-            f,
-        )
-        
-        generator.generate(get_autogen_label())
+    generator = CXXParserGenerator(
+        grammar,
+        tokens_to_names,
+    ).generate()
+    
+    env = make_env()
+    
+    render_tpl(
+        env,
+        "parser.tpl.hpp",
+        output_dir / "include/bondrewd/parse/parser.gen.hpp",
+        generator=generator,
+    )
 
 
 def parse_grammar(grammar_file: pathlib.Path) -> Grammar:

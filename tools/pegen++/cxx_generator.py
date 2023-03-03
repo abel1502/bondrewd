@@ -13,6 +13,10 @@ import re
 from dataclasses import dataclass, field
 from ast import literal_eval
 import enum
+from contextlib import contextmanager
+from textwrap import dedent
+import functools
+import io
 
 from pegen import grammar
 from pegen.grammar import (
@@ -36,28 +40,6 @@ from pegen.grammar import (
     StringLeaf,
 )
 from pegen.parser_generator import ParserGenerator
-
-
-# TODO: Implement the following:
-#       - `defer` helper
-#       - result_cast?
-HPP_PREFIX: typing.Final[str] = """\
-#pragma once
-
-#include <bondrewd/parser/parser_base.hpp>
-
-
-namespace bondrewd::parse {
-
-
-"""
-
-
-HPP_SUFFIX: typing.Final[str] = """
-
-
-}  // namespace bondrewd::parse
-"""
 
 
 TOKEN_TYPES: typing.Final[typing.Set[str]] = {
@@ -300,12 +282,28 @@ class CXXCallMakerVisitor(GrammarVisitor):
         # TODO: ?
         return FunctionCall(
             assigned_variable="_cut_var",
-            function="std::optional<int>",
-            arguments=["1"],
+            function="std::optional<std::monostate>",
+            arguments=["std::monostate{}"],
         )
 
     def generate_call(self, node: typing.Any) -> FunctionCall:
         return self.visit(node)
+
+
+P = typing.ParamSpec("P")
+
+
+def jinja_tpl_generator(func: typing.Callable[P, None]) -> typing.Callable[P, str]:
+    @functools.wraps(func)
+    def wrapper(self: CXXParserGenerator, *args, **kwargs) -> str:
+        # As a force reset
+        # self.get_contents()
+        
+        func(self, *args, **kwargs)
+        
+        return self.get_contents()
+    
+    return wrapper
 
 
 class CXXParserGenerator(ParserGenerator, GrammarVisitor):
@@ -313,17 +311,16 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     debug: bool
     skip_actions: bool
     _varname_counter: int
+    file: io.StringIO
     
     def __init__(
         self,
         grammar: grammar.Grammar,
         tokens_to_names: typing.Dict[str, str],  # keywords and puncts
-        file: typing.Optional[typing.IO[typing.Text]],
         debug: bool = False,
         skip_actions: bool = False,
     ):
-        # TODO: Encapsulate as a constant?
-        ParserGenerator.__init__(self, grammar, TOKEN_TYPES, file)
+        ParserGenerator.__init__(self, grammar, TOKEN_TYPES, io.StringIO())
         GrammarVisitor.__init__(self)
         
         self.callmakervisitor = CXXCallMakerVisitor(self, tokens_to_names)
@@ -331,8 +328,89 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self.debug = debug
         self.skip_actions = skip_actions
 
+    def get_contents(self) -> str:
+        result: str = self.file.getvalue()
+        
+        self.file = io.StringIO()
+        
+        return result
+    
     def add_level(self) -> None:
         pass  # TODO: Maybe implement for recursion level tracking?
 
     def remove_level(self) -> None:
         pass
+
+    def add_return(self, ret_val: str) -> None:
+        self.remove_level()
+        self.print(f"return {ret_val};")
+
+    def unique_varname(self, name: str = "tmpvar") -> str:
+        new_var = name + "_" + str(self._varname_counter)
+        self._varname_counter += 1
+        return new_var
+    
+    @contextmanager
+    def if_impl(self, with_braces: bool = False) -> typing.Generator[None, None, None]:
+        self.print("#ifdef BONDREWD_PARSER_IMPL")
+        if with_braces():
+            self.print("{")
+            with self.indent():
+                yield
+            self.print("}")
+        else:
+            yield
+        self.print("#endif")
+
+    def generate(self, filename: str) -> None:
+        raise NotImplementedError("Use prepare() and a jinja template instead")
+    
+    def prepare(self) -> CXXParserGenerator:
+        self.collect_todo()
+        
+        if "header" in self.grammar.metas:
+            raise NotImplementedError("Overrding header not supported anymore")
+        
+        return self
+
+    @functools.cachedproperty
+    def all_rules_sorted(self) -> typing.List[typing.Tuple[str, Rule]]:
+        return list(sorted(self.all_rules.items(), key=lambda x: x[0]))
+
+    @jinja_tpl_generator
+    def gen_subheader(self) -> None:
+        subheader = self.grammar.metas.get("subheader", "")
+        if subheader:
+            self.print(subheader)
+
+    @jinja_tpl_generator
+    def gen_api(self) -> None:
+        if "start" not in self.all_rules:
+            # This is somewhat counter-intuitive, but this is what the trailer is supposed to be for
+            trailer: str = self.grammar.metas.get("trailer", "")
+            
+            assert trailer, "No start rule and no trailer"
+            
+            self.print(trailer)
+            
+            return
+        
+        self.print("auto parse() {")
+        with self.indent():
+            self.print("return parse_start();")
+        self.print("}")
+    
+    @jinja_tpl_generator
+    def gen_rule_parsers(self) -> None:
+        for rule in list(self.all_rules.values()):
+            self.print()
+            if rule.left_recursive:
+                self.print("// Left-recursive")
+            self.visit(rule)
+
+    def _set_up_rule_caching(self, node: Rule) -> None:
+        # TODO: Memoization!
+        raise NotImplementedError("Left-recursive memoization not yet implemented!")
+
+    def should_cache(self, node: Rule) -> bool:
+        return node.memo and not node.left_recursive

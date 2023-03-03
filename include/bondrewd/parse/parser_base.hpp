@@ -15,7 +15,7 @@ requires std::derived_from<T, ParserBase<T>>
 class ParserBase {
 public:
     #pragma region Constructors
-    ParserBase(Lexer lexer) :
+    ParserBase(lex::Lexer lexer) :
         lexer{std::move(lexer)} {}
     #pragma endregion Constructors
 
@@ -42,28 +42,9 @@ public:
 
 protected:
     #pragma region Fields
-    Lexer lexer;
+    lex::Lexer lexer;
     #pragma endregion Fields
-
-    #pragma region Helpers
-    bool lookahead(bool positive, auto rule_func) {
-        auto guard = lexer.lookahead();
-
-        // TODO: Pass this?
-        return positive == (bool)rule_func();
-    }
-
-    template <typename U>
-    U forced(U result) {
-        if (!result) {
-            // TODO: More info?
-            fatal_error("Forced rule failed");
-        }
-
-        return std::move(result);
-    }
-    #pragma endregion Helpers
-
+    
     #pragma region Error
     // TODO: Error functions?
 
