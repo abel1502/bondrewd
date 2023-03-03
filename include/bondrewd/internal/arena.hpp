@@ -7,6 +7,7 @@
 #include <new>
 #include <vector>
 #include <stdexcept>
+#include <ranges>
 
 
 namespace bondrewd::util {
@@ -162,8 +163,12 @@ protected:
     }
 
     Allocation &find_allocation(void *ptr) {
-        // TODO: Speed up?
-        for (auto &allocation : allocations) {
+        // TODO: Speed up with a map?
+        // For now, my optimization is to search backwards, since the most recent allocations
+        // are the most likely to be referenced. This is, strictly speaking, not true for
+        // destructor calls at the end of the program, but performance isn't really a concern
+        // at that point.
+        for (auto &allocation : std::ranges::views::reverse(allocations)) {
             if (allocation.get_raw() == ptr) {
                 return allocation;
             }
