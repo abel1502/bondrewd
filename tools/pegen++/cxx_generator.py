@@ -373,7 +373,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         return self
 
-    @functools.cachedproperty
+    @functools.cached_property
     def all_rules_sorted(self) -> typing.List[typing.Tuple[str, Rule]]:
         return list(sorted(self.all_rules.items(), key=lambda x: x[0]))
 

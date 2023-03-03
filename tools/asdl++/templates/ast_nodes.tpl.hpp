@@ -16,12 +16,18 @@ class {{ name }}{% if asdl_type is instanceof asdl.Constructor %} : _ConcreteAST
 public:
     #pragma region Fields
     {%- filter indent(width=4) %}
-    {{- gen_fields(asdl_type.fields) }}
-    {%- if asdl_type.attributes is defined %}
-    {{- gen_fields(asdl_type.attributes) }}
-    {%- endif %}
+    {{- gen_fields(helpers.fields_and_attrs(asdl_type)) }}
     {%- endfilter %}
     #pragma endregion Fields
+
+    #pragma region Constructors
+    {%- if helpers.fields_and_attrs(asdl_type) %}
+    {{ name }}({% for field in helpers.fields_and_attrs(asdl_type) %}{{ helpers.field_type(field) }} {{ field.name }}{%- if not loop.last %}, {% endif %}{% endfor %}) :
+        {% for field in helpers.fields_and_attrs(asdl_type) %}{{ field.name }}{std::move({{ field.name }})}{%- if not loop.last %}, {% endif %}{% endfor %} {}
+    {%- else %}
+    {{ name }}() {};
+    {%- endif %}
+    #pragma endregion Constructors
     {% filter indent(width=4) %}
     {{- gen_service_ctors(name, copy=helpers.copyable(asdl_type)) }}
     {%- endfilter %}
@@ -54,10 +60,15 @@ public:
     {{- gen_service_ctors(name, copy=helpers.copyable(asdl_type)) }}
     {%- endfilter %}
 
+    #pragma region Destructor
     ~{{ name }}() = default;
+    #pragma endregion Destructor
+
+    #pragma region Attributes
     {% filter indent(width=4) %}
     {{- gen_fields(asdl_type.attributes) }}
     {%- endfilter %}
+    #pragma endregion Attributes
 };
 
 {%- for alt in asdl_type.types %}

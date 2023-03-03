@@ -63,6 +63,13 @@ class _helpers:
         return [alt.name for alt in sum_type.types]
 
     @staticmethod
+    def fields_and_attrs(type: asdl.Constructor | asdl.Product) -> typing.List[asdl.Field]:
+        if isinstance(type, asdl.Constructor):
+            return type.fields
+        
+        return type.fields + type.attributes
+
+    @staticmethod
     def field_type(field: asdl.Field) -> str:
         raw_type: str = _helpers.type_name(field.type)
         
