@@ -5,6 +5,7 @@
 #include <bondrewd/parse/parser_base.hpp>
 
 #include <map>
+#include <optional>
 
 
 #pragma region Subheader
@@ -39,13 +40,11 @@ protected:
     #pragma endregion Constants and typedefs
 
     #pragma region Fields
-    #if 0
     {%- for rulename, rule in generator.all_rules_sorted %}
     {%- if generator.should_cache(rule) %}
     std::map<state_t, {{ rule.type }}> cache_{{ rulename }}{};
     {%- endif %}
     {%- endfor %}
-    #endif
     #pragma endregion Fields
 
     #pragma region Rule types
@@ -102,7 +101,6 @@ protected:
     }
     #pragma endregion Helpers
 
-    #if 0
     #pragma region CacheHelper
     template <RuleType rule_type>
     class CacheHelper {
@@ -182,7 +180,6 @@ protected:
         cache[state] = std::move(result);
     }
     #pragma endregion Caching
-    #endif
 
     #pragma region Rule parsers
     {{ generator.gen_rule_parsers() }}
