@@ -105,7 +105,7 @@ protected:
     template <RuleType rule_type>
     class CacheHelper {
     public:
-        using result_t = rule_result_t<rule_type>;
+        using result_t = std::optional<rule_result_t<rule_type>>;
 
         CacheHelper(Parser &parser, state_t state, result_t &result) :
             parser{parser}, state{std::move(state)}, rule_type{rule_type}, result{result} {}
@@ -136,12 +136,12 @@ protected:
 
     #pragma region Caching
     template <RuleType rule_type>
-    std::map<state_t, rule_result_t<rule_type>> &_get_cache() {
-        switch (rule_type) {
-            {%- for rulename, rule in generator.all_rules_sorted if generator.should_cache(rule) %}
-            case RuleType::{{ rulename }}:  return cache_{{ rulename }};
-            {%- endfor %}
-            default:  NODEFAULT;
+    constexpr std::map<state_t, rule_result_t<rule_type>> &_get_cache() {
+        {%- for rulename, rule in generator.all_rules_sorted if generator.should_cache(rule) %}
+        if constexpr (rule_type == RuleType::{{ rulename }}) {
+            return cache_{{ rulename }};
+        } else {% endfor %} {
+            static_assert(false, "Uncachable rule type");
         }
     }
 
@@ -158,26 +158,12 @@ protected:
         return it->second;
     }
 
+    // Updates, if present
     template <RuleType rule_type>
     void store_cached(state_t state, std::optional<rule_result_t<rule_type>> result) {
         auto &cache = _get_cache<rule_type>();
 
-        if (cache.contains(state)) {
-            throw runtime_error("Duplicate cache entry");
-        }
-
         cache.emplace(state, std::move(result));
-    }
-
-    template <RuleType rule_type>
-    void update_cached(state_t state, std::optional<rule_result_t<rule_type>> result) {
-        auto &cache = _get_cache<rule_type>();
-
-        if (!cache.contains(state)) {
-            throw runtime_error("Cache entry not found");
-        }
-
-        cache[state] = std::move(result);
     }
     #pragma endregion Caching
 

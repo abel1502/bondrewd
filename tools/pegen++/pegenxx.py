@@ -57,8 +57,6 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     
-    return  # Not ready yet.
-    
     keywords_file: pathlib.Path = args.keywords
     puncts_file: pathlib.Path = args.puncts
     grammar_file: pathlib.Path = args.grammar

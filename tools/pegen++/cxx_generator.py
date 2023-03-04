@@ -290,6 +290,12 @@ class CXXCallMakerVisitor(GrammarVisitor):
         return self.visit(node)
 
 
+class CXXTypeDeductionVisitor(GrammarVisitor):
+    # TODO: Also unwrap quoted types!
+    
+    pass  # TODO: Implement
+
+
 P = typing.ParamSpec("P")
 
 
@@ -373,6 +379,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         # TODO: Compute all rule types!
         
+        # TODO: Mark all loops for caching?
+        
         return self
 
     @functools.cached_property
@@ -410,9 +418,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.print("// Left-recursive")
             self.visit(rule)
 
+    def should_cache(self, node: Rule) -> bool:
+        return node.memo and not node.left_recursive
+    
     def visit_Rule(self, node: Rule) -> None:
-        # TODO: wrap body definition in `#ifdef BONDREWD_PARSER_IMPL`
-        
         is_loop = node.is_loop()
         is_gather = node.is_gather()
         rhs = node.flatten()
@@ -443,31 +452,235 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.add_level()
             self.print(f"std::optional<{result_type}> _res = std::nullopt;")
             # TODO: Guard for saving _res in case of success
-            self.print(f"if (_res = get_cached<RuleType::{node.name}>(state)) {{")
+            self.print(f"if (_res = get_cached<RuleType::{node.name}>(_state)) {{")
             with self.indent():
                 self.add_return("_res")
             self.print("}")
             
-            self.print("auto state = tell();")
-            self.print("auto res_state = tell();")
+            self.print("auto _state = tell();")
+            self.print("auto _res_state = tell();")
             
             self.print("while (true) {")
             with self.indent():
-                self.print(f"update_cached<RuleType::{node.name}>(state, _res);")
-                self.print("seek(state);")
-                self.print("auto _raw = parse_raw_{node.name}();")
-                self.print("if (!_raw || tell() <= res_state) {")
+                self.print(f"store_cached<RuleType::{node.name}>(_state, _res);")
+                self.print("seek(_state);")
+                self.print(f"auto _raw = parse_raw_{node.name}();")
+                self.print("if (!_raw || tell() <= _res_state) {")
                 with self.indent():
                     self.print("break;")
                 self.print("}")
                 self.print("_res = _raw;")
-                self.print("res_state = tell();")
+                self.print("_res_state = tell();")
             self.print("}")
             
-            self.print("seek(res_state);")
+            self.print("seek(_res_state);")
             self.add_return("_res")
         
         self.print(f"std::optional<{node.type}> parse_raw_{node.name}()")
+        
+    def _handle_default_rule_body(self, node: Rule, rhs: Rhs) -> None:
+        should_cache: bool = self.should_cache(node)
+        
+        assert node.type is not None, "All rules must have specific types!"
+        result_type: str = node.type
 
-    def should_cache(self, node: Rule) -> bool:
-        return node.memo and not node.left_recursive
+        self.add_level()
+        self.print(f"std::optional<{result_type}> _res = std::nullopt;")
+        
+        if should_cache:
+            self.print(f"if (_res = get_cached<RuleType::{node.name}>(_state)) {{")
+            with self.indent():
+                self.add_return("_res")
+            self.print("}")
+            
+            # If `cache_guard.accept()` is called, the cache is automatically
+            # set upon leaving the function scope
+            self.print(f"CacheHelper<RuleType::{node.name}> cache_guard{{*this, _state, _res}};")
+        
+        # TODO: Pass the type as well?
+        self.visit(
+            rhs,
+            is_loop=False,
+            is_gather=node.is_gather(),
+            rulename=node.name,
+            should_cache=should_cache,
+        )
+        
+        self.print("_res = std::nullopt;")
+        self.add_return("_res")
+
+    def _handle_loop_rule_body(self, node: Rule, rhs: Rhs) -> None:
+        should_cache: bool = self.should_cache(node)
+        is_repeat1: bool = node.name.startswith("_loop1")
+        
+        # TODO: Maybe loop results are different?
+        assert node.type is not None, "All rules must have specific types!"
+        result_type: str = node.type
+        
+        assert node.name, "Unexpected unnamed loop rule!"
+
+        self.add_level()
+        self.print(f"std::optional<{result_type}> _res = std::nullopt;")
+        if should_cache:
+            self.print(f"if (_res = get_cached(_state, RuleType::{node.name})) {{")
+            with self.indent():
+                self.add_return("_res")
+            self.print("}")
+        self.print("auto _state = tell();")
+        self.print("int _start_state = tell();")
+        self.print(f"std::vector<{result_type}> _children{{}};")
+        self.print("size_t _n = 0;")
+        self.visit(
+            rhs,
+            is_loop=True,
+            is_gather=node.is_gather(),
+            rulename=node.name,
+            should_cache=False,  # False because there shouldn't be any short-circuiting returns,
+                                 # and we don't have a cache-guard because of that
+        )
+        
+        if is_repeat1:
+            self.print("if (_n == 0) {")
+            with self.indent():
+                self.add_return("std::nullopt")
+            self.print("}")
+        
+        self.print("auto _seq = ast::make_sequence(std::move(_res));")
+        if should_cache:
+            # No cache guard used, so we store manually
+            self.print(f"store_cached(_state, RuleType::{node.name}, _seq);")
+        self.add_return("_seq")
+
+    def visit_Rhs(
+        self, node: Rhs, is_loop: bool, is_gather: bool, rulename: str | None, should_cache: bool
+    ) -> None:
+        if is_loop:
+            assert len(node.alts) == 1
+        
+        for alt in node.alts:
+            self.visit(alt, is_loop=is_loop, is_gather=is_gather, rulename=rulename, should_cache=should_cache)
+    
+    def visit_Alt(
+        self, node: Alt, is_loop: bool, is_gather: bool, rulename: str | None, should_cache: bool
+    ) -> None:
+        self.print(f"{{ // {node}")
+        with self.indent():
+            vars = self.collect_vars(node)
+            has_cut: bool = "_cut_var" in vars
+            
+            if has_cut:
+                self.print("std::optional<std::monostate> _cut_var = std::nullopt;")
+
+            with self.local_variable_context():
+                if is_loop:
+                    self.handle_alt_loop(node, rulename)
+                else:
+                    self.handle_alt_normal(node, is_gather, rulename)
+
+            self.print("seek(_state);")
+            
+            if "_cut_var" in vars:
+                self.print("if (_cut_var) {")
+                with self.indent():
+                    self.add_return("std::nullopt")
+                self.print("}")
+        self.print("}")
+    
+    def handle_alt_normal(self, node: Alt, is_gather: bool, rulename: str | None, should_cache: bool) -> None:
+        with self.nest_conditions(node):
+            self.emit_action(node, skip=self.skip_actions, is_gather=is_gather)
+
+            # As the current option has parsed correctly, do not continue with the rest.
+            if should_cache:
+                self.print("cache_guard.accept();")
+            self.add_return("_res")
+
+    def handle_alt_loop(self, node: Alt, rulename: str | None) -> None:
+        self.print("while (true) {")
+        with self.indent():
+            with self.nest_conditions(node):
+                # Loops are never gathers
+                self.emit_action(node, skip=self.skip_actions, is_gather=False)
+
+                # Add the result of rule to the temporary buffer of children. This buffer
+                # will populate later an asdl_seq with all elements to return.
+                self.print("_children.push_back(_res);")
+                self.print("_state = tell();")
+                self.print("continue;")
+            self.print("break;")
+        self.print("}")
+    
+    @contextmanager
+    def nest_conditions(self, node: Alt) -> typing.Generator[None, None, None]:
+        for item in node.items:
+            call = self.emit_call(item)
+            
+            assert call.assigned_variable is not None, "Unexpected variable-less call!"
+            cond: str = call.assigned_variable
+            if call.force_true:
+                cond = "true"
+            
+            self.print(f"if ({cond}) {{")
+        
+        with self.indent():
+            yield
+        
+        for _ in node.items:
+            self.print("}")
+
+    def emit_action(self, node: Alt, skip: bool, is_gather: bool) -> None:
+        if skip:
+            self.print("_res = _dummy_whatever_();")
+            return
+        
+        if node.action:
+            self.print(f"_res = {node.action};")
+            return
+        
+        # TODO: Horrible. Rewrite to not rely on the local variable array so much
+        if len(self.local_variable_names) > 1:
+            if is_gather:
+                assert len(self.local_variable_names) == 2
+                # TODO: Remove!
+                self.print(f"// !!! DBG: emit_default_action(gather) locals: {self.local_variable_names}")
+                self.print(
+                    f"_res.push_back(std::move({self.local_variable_names[1]}));"
+                )
+            else:
+                self.print(
+                    f"_res = _dummy_whatever_({', '.join(self.local_variable_names)});"
+                )
+        else:
+            self.print(f"_res = {self.local_variable_names[0]};")
+
+    def emit_call(self, node: NamedItem) -> FunctionCall:
+        call = self.callmakervisitor.generate_call(node)
+        
+        if call.assigned_variable == "_cut_var":
+            self.print(f"_cut_var = {call};")
+            return
+        
+        if call.assigned_variable:
+            call.assigned_variable = self.dedupe(call.assigned_variable)
+        
+        self.print(call.get_full_call())
+        
+        return call
+
+    def collect_vars(self, node: Alt) -> typing.Dict[str, str | None]:
+        types = {}
+        with self.local_variable_context():
+            for item in node.items:
+                name, type = self.add_var(item)
+                if name is None:
+                    continue
+                types[name] = type
+        return types
+
+    def add_var(self, node: NamedItem) -> typing.Tuple[str | None, str | None]:
+        call: FunctionCall = self.callmakervisitor.generate_call(node.item)
+        name: str | None = node.name or call.assigned_variable
+        if name is not None:
+            name = self.dedupe(name)
+        return_type: str | None = node.type  # or call.return_type
+        return name, return_type
