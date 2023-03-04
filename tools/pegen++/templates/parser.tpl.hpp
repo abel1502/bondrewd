@@ -161,7 +161,7 @@ protected:
     }
 
     template <RuleType rule_type>
-    void store_cached(state_t state, rule_result_t<rule_type> result) {
+    void store_cached(state_t state, std::optional<rule_result_t<rule_type>> result) {
         auto &cache = _get_cache<rule_type>();
 
         if (cache.contains(state)) {
@@ -172,7 +172,7 @@ protected:
     }
 
     template <RuleType rule_type>
-    void update_cached(state_t state, rule_result_t<rule_type> result) {
+    void update_cached(state_t state, std::optional<rule_result_t<rule_type>> result) {
         auto &cache = _get_cache<rule_type>();
 
         if (!cache.contains(state)) {

@@ -371,6 +371,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         if "header" in self.grammar.metas:
             raise NotImplementedError("Overrding header not supported anymore")
         
+        # TODO: Compute all rule types!
+        
         return self
 
     @functools.cached_property
@@ -408,9 +410,64 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.print("// Left-recursive")
             self.visit(rule)
 
+    def visit_Rule(self, node: Rule) -> None:
+        # TODO: wrap body definition in `#ifdef BONDREWD_PARSER_IMPL`
+        
+        is_loop = node.is_loop()
+        is_gather = node.is_gather()
+        rhs = node.flatten()
+
+        for line in str(node).splitlines():
+            self.print(f"// {line}")
+        
+        if node.left_recursive and node.leader:
+            self.print(f"std::optional<{node.type}> parse_raw_{node.name}();")
+
+        self.print(f"std::optional<{node.type}> parse_{node.name}()")
+        
+        if node.left_recursive and node.leader:
+            self._set_up_rule_caching(node)
+
+        with self.if_impl(with_braces=True):
+            with self.indent():
+                if is_loop:
+                    self._handle_loop_rule_body(node, rhs)
+                else:
+                    self._handle_default_rule_body(node, rhs)
+    
     def _set_up_rule_caching(self, node: Rule) -> None:
-        # TODO: Memoization!
-        raise NotImplementedError("Left-recursive memoization not yet implemented!")
+        with self.if_impl(with_braces=True):
+            assert node.type is not None, "All rules must have specific types!"
+            result_type: str = node.type
+            
+            self.add_level()
+            self.print(f"std::optional<{result_type}> _res = std::nullopt;")
+            # TODO: Guard for saving _res in case of success
+            self.print(f"if (_res = get_cached<RuleType::{node.name}>(state)) {{")
+            with self.indent():
+                self.add_return("_res")
+            self.print("}")
+            
+            self.print("auto state = tell();")
+            self.print("auto res_state = tell();")
+            
+            self.print("while (true) {")
+            with self.indent():
+                self.print(f"update_cached<RuleType::{node.name}>(state, _res);")
+                self.print("seek(state);")
+                self.print("auto _raw = parse_raw_{node.name}();")
+                self.print("if (!_raw || tell() <= res_state) {")
+                with self.indent():
+                    self.print("break;")
+                self.print("}")
+                self.print("_res = _raw;")
+                self.print("res_state = tell();")
+            self.print("}")
+            
+            self.print("seek(res_state);")
+            self.add_return("_res")
+        
+        self.print(f"std::optional<{node.type}> parse_raw_{node.name}()")
 
     def should_cache(self, node: Rule) -> bool:
         return node.memo and not node.left_recursive
