@@ -4,6 +4,8 @@
 #include <bondrewd/internal/common.hpp>
 #include <bondrewd/parse/parser_base.hpp>
 
+#include <map>
+
 
 #pragma region Subheader
 {{ generator.gen_subheader() }}
@@ -158,10 +160,27 @@ protected:
         return it->second;
     }
 
-    // TODO: Finish;
-    // Actually, caching unique_ptrs is weird, as is caching tree-like structures by value.
-    // I'm at a loss as to how to do this. I don't want shared_ptrs in the AST, because
-    // they don't make sense there - in a tree, the parent owns the child.
+    template <RuleType rule_type>
+    void store_cached(state_t state, rule_result_t<rule_type> result) {
+        auto &cache = _get_cache<rule_type>();
+
+        if (cache.contains(state)) {
+            throw runtime_error("Duplicate cache entry");
+        }
+
+        cache.emplace(state, std::move(result));
+    }
+
+    template <RuleType rule_type>
+    void update_cached(state_t state, rule_result_t<rule_type> result) {
+        auto &cache = _get_cache<rule_type>();
+
+        if (!cache.contains(state)) {
+            throw runtime_error("Cache entry not found");
+        }
+
+        cache[state] = std::move(result);
+    }
     #pragma endregion Caching
     #endif
 
