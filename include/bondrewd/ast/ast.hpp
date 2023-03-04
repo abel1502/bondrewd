@@ -82,27 +82,50 @@ concept concrete_ast_node = std::derived_from<T, _ConcreteASTNode>;
 
 
 #pragma region Convenience aliases
+#pragma region field
 template <typename T>
 using field = util::arena_ptr<T, &ast_arena>;
-
-
-template <typename T>
-using sequence = std::vector<T>;
-
-
-// TODO: special helper for optional?
-
 
 template <typename T, typename ... As>
 field<T> make_field(As &&... args) {
     return util::make_arena_ptr<T, &ast_arena>(std::forward<As>(args)...);
 }
+#pragma endregion field
 
+#pragma region sequence
+template <typename T>
+using sequence = util::arena_ptr<std::vector<T>, &ast_arena>;
 
 template <typename T, typename ... As>
 sequence<T> make_sequence(As &&... args) {
-    return sequence<T>{std::forward<As>(args)...};
+    return util::make_arena_ptr<std::vector<T>, &ast_arena>{std::forward<As>(args)...};
 }
+#pragma endregion sequence
+
+#pragma region maybe
+template <typename T>
+using maybe = field<T>;
+
+template <typename T, typename ... As>
+maybe<T> make_maybe(As &&... args) {
+    return make_field<T>(std::forward<As>(args)...);
+}
+
+template <typename T>
+maybe<T> make_maybe(std::nullopt_t) {
+    return nullptr;
+}
+
+template <typename T>
+maybe<T> make_maybe(std::nullptr_t) {
+    return nullptr;
+}
+
+template <typename T>
+maybe<T> make_maybe() {
+    return nullptr;
+}
+#pragma endregion maybe
 #pragma endregion Convenience aliases
 
 

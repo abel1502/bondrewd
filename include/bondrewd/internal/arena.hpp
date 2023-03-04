@@ -189,6 +189,8 @@ class arena_ptr {
 public:
     #pragma region Constructors
     arena_ptr() : ptr{nullptr} {};
+
+    arena_ptr(nullptr_t) : arena_ptr() {};
     #pragma endregion Constructors
 
     #pragma region Service constructors

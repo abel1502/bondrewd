@@ -78,11 +78,11 @@ class _helpers:
         
         if field.seq:
             return f"sequence<{raw_type}>"
+
+        if field.opt:
+            return f"maybe<{raw_type}>"
         
-        return "field<{}>{}".format(
-            raw_type,
-            " /* nullable */" if field.opt else "",
-        )
+        return f"field<{raw_type}>"
     
     @staticmethod
     def field_decls(fields: typing.List[asdl.Field]) -> typing.List[str]:
