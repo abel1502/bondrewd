@@ -33,7 +33,7 @@ In Bondrewd, there's a similar keyword: `ctime`. Let us clarify its meaning:
     foo(n);
     ```
 
-## `ctime`-contexts
+## Other `ctime` uses
 That being said, `ctime` isn't exclusively about functions. You can use the
 `ctime` keyword in the following cases:
  - With a code block:
@@ -59,3 +59,13 @@ That being said, `ctime` isn't exclusively about functions. You can use the
         // ...
     };
     ```
+
+## `ctime` contexts
+A `ctime` context is a block of code that must be evaluated entirely at
+compile-time. You've already met some example in this document. Here are the
+rest of them:
+ - Type annotations
+ - `ctime` code blocks (including `ctime` function bodies)
+ - `ctime` variable initializers
+ - Arguments to `ctime` function calls
+ - ... (TODO: List the rest)
