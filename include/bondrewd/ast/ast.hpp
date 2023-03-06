@@ -140,7 +140,8 @@ using string = std::string;
 using string_view = std::string_view;
 
 // TODO: Temporary! Will be replaced with a compile-time object type
-using constant = std::variant<int64_t, double, std::string>;
+// Monostate represents unit for now
+using constant = std::variant<int64_t, double, std::string, std::monostate>;
 #pragma endregion ASDL basic types
 
 

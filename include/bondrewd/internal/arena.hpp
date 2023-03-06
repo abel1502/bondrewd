@@ -272,6 +272,8 @@ public:
     }
     #pragma endregion API
 
+    // TODO: Casting to compatible types!
+
 protected:
     #pragma region Fields
     T *ptr;

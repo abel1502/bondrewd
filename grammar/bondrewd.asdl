@@ -6,26 +6,29 @@ module Bondrewd {
     -- TODO: Very much incomplete
     cartridge = Cartridge(stmt* body)
 
-    stmt = For()
-         | While()
-         | FuncDef(identifier name, arguments args, stmt* body)
-         | VarDef()
-         | Assign(expr target, expr value)
+    stmt = FuncDef(identifier name, arguments args, expr body)
+         | ClassDef(identifier name, expr body)  -- TODO: More data
+         | VarDef(identifier name, expr type, expr? value, bool is_mut)
+         | Assign(expr target, expr value, assign_op op)
          | Expr(expr value)
          | Pass
     
     expr = Name(identifier value)
          | Constant(constant value)
          | Call(expr func, expr* args)
-         | Block(stmt* body)
+         | Block(stmt* body, expr value)
          | BinOp(expr left, binary_op op, expr right)
          | UnOp(unary_op op, expr operand)
          | Compare(expr left, cmp_op* op, expr* operands)
          | BoolOp(expr left, bool_op op, expr right)
-         | If(expr cond, expr body, expr? orelse)
-         | Return(expr? value)
-         | Break
+         | If(expr cond, expr body, expr orelse)
+         | For(identifier var, expr iter, expr body, expr orelse)
+         | While(expr cond, expr body, expr? orelse)
+         | Return(expr value)
+         | Break(expr value)
     
+    assign_op = None | Add | Sub | Mul | Div | Mod | LShift | RShift | BitOr | BitXor | BitAnd
+
     bool_op = And | Or
 
     binary_op = Add | Sub | Mul | Div | Mod | LShift | RShift | BitOr | BitXor | BitAnd | BidirCmp

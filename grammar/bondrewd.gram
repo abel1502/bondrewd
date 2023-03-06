@@ -1,1 +1,44 @@
-# TODO
+# PEG grammar for the Bondrewd language
+
+# TODO: add lookaheads and cuts where applicable; add `(memo)` to the most common rules
+
+start['ast::cartridge']:
+    | a=cartridge  { std::move(a) }
+
+cartridge['ast::cartridge']:
+    | h=cartridge_header b=statement*  { ast::Cartridge(std::move(h), std::move(b)) }
+
+cartridge_header['std::string']:
+    | 'cartridge' n=name ';'  { std::move(n) }
+
+statement['ast::stmt']:
+    | a=func_def  { std::move(a) }
+    | a=class_def  { std::move(a) }
+    | a=var_def ';'  { std::move(a) }
+    | a=assign ';'  { std::move(a) }
+    | a=expr ';'  { std::move(a) }
+    | ';'  { ast::Pass() }
+
+# TODO: Support constants!
+expr['ast::expr']:
+    | a=NAME  { ast::Name(a.get_name().value) }
+    | a=NUMBER  { ast::Constant(a.get_number().value) }
+    | a=STRING  { ast::Constant(a.get_string().value) }  # TODO: Account for quote type!
+    | a=block  { std::move(a) }
+    | a=if_expr  { std::move(a) }
+    | a=for_expr  { std::move(a) }
+    | a=while_expr  { std::move(a) }
+    | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
+    | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
+    | a=call  { std::move(a) }
+    | a=disjunction_expr  { std::move(a) }
+
+expr_or_unit['ast::expr']:
+    | a=expr  { std::move(a) }
+    |  { ast::Constant(std::monostate()) }  # TODO: Implement Unit!
+
+disjunction_expr['ast::expr']:
+    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or, std::move(a), std::move(b)) }
+    | a=conjunction_expr  { std::move(a) }
+
+# TODO: Finish!
