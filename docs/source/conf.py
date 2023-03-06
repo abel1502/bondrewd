@@ -17,11 +17,22 @@ version = '0.0.0dev1'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    'myst_parser',
     'sphinx.ext.duration',
-    'sphinx.ext.doctest',
-    'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
+]
+
+myst_enable_extensions = [
+    'colon_fence',
+    'attrs_inline',
+    'attrs_block',
+    'strikethrough',
+    'replacements',
+    # 'smartquotes',
+    'tasklist',
+    'deflist',
+    'fieldlist',
 ]
 
 intersphinx_mapping = {
