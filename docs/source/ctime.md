@@ -67,5 +67,6 @@ rest of them:
  - Type annotations
  - `ctime` code blocks (including `ctime` function bodies)
  - `ctime` variable initializers
- - Arguments to `ctime` function calls
+ - Arguments to `ctime` function calls (including all template arguments, since
+    templates are just overloaded square brackets)
  - ... (TODO: List the rest)
