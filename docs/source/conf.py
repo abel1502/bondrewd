@@ -54,3 +54,9 @@ html_theme = 'sphinx_rtd_theme'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
+
+
+import pathlib
+import sys
+sys.path.append(str(pathlib.Path(__file__).parent))
+import bondrewd_pygments
