@@ -2,6 +2,10 @@
 
 # TODO: add lookaheads and cuts where applicable; add `(memo)` to the most common rules
 
+@subheader '''\
+#include <algorithm>
+'''
+
 start['ast::cartridge']:
     | a=cartridge  { std::move(a) }
 
@@ -40,5 +44,17 @@ expr_or_unit['ast::expr']:
 disjunction_expr['ast::expr']:
     | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or, std::move(a), std::move(b)) }
     | a=conjunction_expr  { std::move(a) }
+
+conjunction_expr['ast::expr']:
+    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And, std::move(a), std::move(b)) }
+    | a=inversion_expr  { std::move(a) }
+
+inversion_expr['ast::expr']:
+    | 'not' a=inversion_expr  { ast::UnaryOp(ast::Not, std::move(a)) }
+    | a=comparison_expr  { std::move(a) }
+
+comparison_expr['ast::expr']:  # TODO: Extract from sequence somehow (without a 1000-char rule, preferably)
+    | a=arithmetic_expr b=comparison_followup_pair+  { ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
+    | a=arithmetic_expr  { std::move(a) }
 
 # TODO: Finish!
