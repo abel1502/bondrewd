@@ -11,26 +11,69 @@
 #include <algorithm>
 '''
 
-start['ast::cartridge']:
-    | a=cartridge  { std::move(a) }
+start['ast::cartridge']:  cartridge
 
+# cartridge {
 cartridge['ast::cartridge']:
-    | h=cartridge_header b=(global_only_stmt | stmt)*  { ast::Cartridge(std::move(h), std::move(b)) }
+    | h=cartridge_header b=stmt*  { ast::Cartridge(std::move(h), std::move(b)) }
 
 cartridge_header['std::string']:
-    | 'cartridge' n=name ';'  { std::move(n) }
+    | 'cartridge' n=NAME ';'  { n.get_name().value }
+# }  // cartridge
 
-global_only_stmt['ast::stmt']:
-    | class_def
-    | impl_def
-
+# stmt {
 stmt['ast::stmt']:
-    | var_def_stmt
-    | func_def_stmt
+    | impl_stmt
+    | definition_stmt
     | assign_stmt
     | expr_stmt
     | ';'  { ast::Pass() }
 
+assign_stmt['ast::stmt']:
+    | a=expr o=assign_op b=expr ';'  { ast::Assign(std::move(a), std::move(b), std::move(op)) }
+
+assign_op['ast::assign_op']"
+    | '='  { ast::AsgnNone() }
+    | '+='  { ast::AsgnAdd() }
+    | '-='  { ast::AsgnSub() }
+    | '*='  { ast::AsgnMul() }
+    | '/='  { ast::AsgnDiv() }
+    | '%='  { ast::AsgnMod() }
+    | '<<='  { ast::AsgnLShift() }
+    | '>>='  { ast::AsgnRShift() }
+    | '&='  { ast::AsgnBitAnd() }
+    | '|='  { ast::AsgnBitOr() }
+    | '^='  { ast::AsgnBitXor() }
+
+# TODO
+impl_stmt['ast::stmt']:
+    | c='ctime'? 'impl' c=NAME '{' d=definition* '}' ';'
+# }  // stmt
+
+# definition {
+definition_stmt['ast::stmt']:
+    | a=definition  { ast::Definition(std::move(a)) }
+
+definition['ast::definition']:
+    | var_def_stmt
+    | func_def_stmt
+    | class_def_stmt
+
+type_annotation['ast::expr']:
+    | ':' a=expr  { std::move(a) }
+
+var_def['ast::definition']:
+    | c='ctime'? 'var' n=NAME t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(n.get_name().value, std::move(t), std::move(v), true, bool(c)) }
+
+func_def['ast::definition']:
+    | 'def' n=NAME '(' a=func_args_def ')' t=['->' a=expr { a }] '=>' b=expr ';'  { ast::FuncDef(n.get_name().value, std::move(a), std::move(t), std::move(b)) }
+
+# TODO
+class_def['ast::definition']:
+    | c='ctime'? 'class' n=NAME '{'  '}' ';'
+# }  // definition
+
+# expr {
 expr_stmt['ast::stmt']:
     | a=expr ';'  { ast::Expr(std::move(a)) }
 
@@ -116,7 +159,7 @@ power_expr['ast::expr']:
 primary_expr['ast::expr']:
     | a=primary_expr '.' b=NAME  { ast::Attribute(std::move(a), b.get_name().value, ast::AttrInst()) }
     | a=primary_expr '::' b=NAME  { ast::Attribute(std::move(a), b.get_name().value, ast::AttrStatic()) }
-    | a=primary_expr '[' b=expr ']'  { ast::Subscript(std::move(a), std::move(b)) }
+    | a=primary_expr '[' b=call_args ']'  { ast::Subscript(std::move(a), std::move(b)) }
     | a=primary_expr '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
     | atom_expr
 
@@ -139,30 +182,6 @@ tuple_expr['ast::expr']:
 
 block_expr['ast::expr']:
     | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
-
-type_annotation['ast::expr']:
-    | ':' a=expr  { std::move(a) }
-
-var_def_stmt['ast::stmt']:
-    | c='ctime'? 'var' n=NAME t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(n.get_name().value, std::move(t), std::move(v), true, bool(c)) }
-
-func_def_stmt['ast::stmt']:
-    | 'def' n=NAME '(' a=func_args_def ')' t=['->' a=expr { a }] '=>' b=expr ';'  { ast::FuncDef(n.get_name().value, std::move(a), std::move(t), std::move(b)) }
-
-assign_stmt['ast::stmt']:
-    | a=expr o=assign_op b=expr ';'  { ast::Assign(std::move(a), std::move(b), std::move(op)) }
-
-assign_op['ast::assign_op']"
-    | '='  { ast::AsgnNone() }
-    | '+='  { ast::AsgnAdd() }
-    | '-='  { ast::AsgnSub() }
-    | '*='  { ast::AsgnMul() }
-    | '/='  { ast::AsgnDiv() }
-    | '%='  { ast::AsgnMod() }
-    | '<<='  { ast::AsgnLShift() }
-    | '>>='  { ast::AsgnRShift() }
-    | '&='  { ast::AsgnBitAnd() }
-    | '|='  { ast::AsgnBitOr() }
-    | '^='  { ast::AsgnBitXor() }
+# }  // expr
 
 # TODO: Finish!
