@@ -1,6 +1,9 @@
 # PEG grammar for the Bondrewd language
 
 # TODO: add lookaheads and cuts where applicable; add `(memo)` to the most common rules
+# TODO: Fixup operator-related rules!
+# TODO: Sequence helpers!
+# TODO: Force parentheses around some operators (like bitwise)?
 
 @subheader '''\
 #include <algorithm>
@@ -42,19 +45,71 @@ expr_or_unit['ast::expr']:
     |  { ast::Constant(std::monostate()) }  # TODO: Implement Unit!
 
 disjunction_expr['ast::expr']:
-    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or, std::move(a), std::move(b)) }
+    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or(), ...) }
     | a=conjunction_expr  { std::move(a) }
 
 conjunction_expr['ast::expr']:
-    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And, std::move(a), std::move(b)) }
+    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And(), ...) }
     | a=inversion_expr  { std::move(a) }
 
 inversion_expr['ast::expr']:
-    | 'not' a=inversion_expr  { ast::UnaryOp(ast::Not, std::move(a)) }
+    | 'not' a=inversion_expr  { ast::UnaryOp(ast::Not(), std::move(a)) }
     | a=comparison_expr  { std::move(a) }
 
 comparison_expr['ast::expr']:  # TODO: Extract from sequence somehow (without a 1000-char rule, preferably)
-    | a=arithmetic_expr b=comparison_followup_pair+  { ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
-    | a=arithmetic_expr  { std::move(a) }
+    | a=bidir_cmp_expr b=comparison_followup_pair+  { ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
+    | a=bidir_cmp_expr  { std::move(a) }
+
+# TODO: comparison_followup_pair['']:
+
+# This one doesn't allow chaining, since it would've made no sense. Use parentheses if you really need it.
+bidir_cmp_expr['ast::expr']:
+    | a=bitor_expr '<=>' b=bitor_expr  { ast::Compare(std::move(a), std::move(b)) }
+    | a=bitor_expr  { std::move(a) }
+
+bitor_expr['ast::expr']:
+    | a=bitor_expr '|' b=bitxor_expr  { ast::BinOp(ast::BitOr(), std::move(a), std::move(b)) }
+    | a=bitxor_expr  { std::move(a) }
+
+bitxor_expr['ast::expr']:
+    | a=bitxor_expr '&' b=bitand_expr  { ast::BinOp(ast::BitXor(), std::move(a), std::move(b)) }
+    | a=bitand_expr  { std::move(a) }
+
+bitand_expr['ast::expr']:
+    | a=bitand_expr '&' b=shift_expr  { ast::BinOp(ast::BitAnd(), std::move(a), std::move(b)) }
+    | a=shift_expr  { std::move(a) }
+
+shift_expr['ast::expr']:
+    | a=shift_expr '<<' b=sum_expr  { ast::BinOp(ast::LShift(), std::move(a), std::move(b)) }
+    | a=shift_expr '>>' b=sum_expr  { ast::BinOp(ast::RShift(), std::move(a), std::move(b)) }
+    | a=sum_expr  { std::move(a) }
+
+sum_expr['ast::expr']:
+    | a=sum_expr '+' b=term_expr  { ast::BinOp(ast::Add(), std::move(a), std::move(b)) }
+    | a=sum_expr '-' b=term_expr  { ast::BinOp(ast::Sub(), std::move(a), std::move(b)) }
+    | a=term_expr  { std::move(a) }
+
+term_expr['ast::expr']:
+    | a=term_expr '*' b=factor_expr  { ast::BinOp(ast::Mul(), std::move(a), std::move(b)) }
+    | a=term_expr '/' b=factor_expr  { ast::BinOp(ast::Div(), std::move(a), std::move(b)) }
+    | a=term_expr '%' b=factor_expr  { ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
+    | a=factor_expr  { std::move(a) }
+
+factor_expr['ast::expr']:
+    | '+' a=factor_expr  { ast::UnaryOp(ast::UAdd(), std::move(a)) }
+    | '-' a=factor_expr  { ast::UnaryOp(ast::USub(), std::move(a)) }
+    | '~' a=factor_expr  { ast::UnaryOp(ast::BitInv(), std::move(a)) }
+    | a=power_expr  { std::move(a) }
+
+power_expr['ast::expr']:
+    | a=primary_expr '**' b=factor_expr  { ast::BinOp(ast::Pow(), std::move(a), std::move(b)) }
+    | a=primary_expr  { std::move(a) }
+
+primary_expr['ast::expr']:
+    | a=primary_expr '.' b=NAME  { ast::Attribute(std::move(a), b.get_name().value, ast::AttrInst()) }
+    | a=primary_expr '::' b=NAME  { ast::Attribute(std::move(a), b.get_name().value, ast::AttrStatic()) }
+    | a=primary_expr '[' b=expr ']'  { ast::Subscript(std::move(a), std::move(b)) }
+    | a=primary_expr '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
+    | a=atom  { std::move(a) }
 
 # TODO: Finish!

@@ -6,7 +6,7 @@ module Bondrewd {
     -- TODO: Very much incomplete
     cartridge = Cartridge(stmt* body)
 
-    stmt = FuncDef(identifier name, arguments args, expr body)
+    stmt = FuncDef(identifier name, arg_defs args, expr body)
          | ClassDef(identifier name, expr body)  -- TODO: More data
          | VarDef(identifier name, expr type, expr? value, bool is_mut)
          | Assign(expr target, expr value, assign_op op)
@@ -15,30 +15,39 @@ module Bondrewd {
     
     expr = Name(identifier value)
          | Constant(constant value)
-         | Call(expr func, expr* args)
+         | Call(expr func, call_args args)
+         | Attribute(expr value, identifier attr, attr_op type)
+         | Subscript(expr value, expr index)
          | Block(stmt* body, expr value)
          | BinOp(expr left, binary_op op, expr right)
          | UnOp(unary_op op, expr operand)
          | Compare(expr left, cmp_op* op, expr* operands)
-         | BoolOp(expr left, bool_op op, expr right)
+         | BoolOp(bool_op op, expr* values)
          | If(expr cond, expr body, expr orelse)
          | For(identifier var, expr iter, expr body, expr orelse)
          | While(expr cond, expr body, expr? orelse)
          | Return(expr value)
          | Break(expr value)
+         | Continue()
+     
+    call_args = (call_arg* args, identifier? vararg, identifier? kwarg)
+
+    call_arg = (identifier? name, expr value)
     
     assign_op = None | Add | Sub | Mul | Div | Mod | LShift | RShift | BitOr | BitXor | BitAnd
 
     bool_op = And | Or
 
-    binary_op = Add | Sub | Mul | Div | Mod | LShift | RShift | BitOr | BitXor | BitAnd | BidirCmp
+    binary_op = Add | Sub | Mul | Div | Mod | Pow | LShift | RShift | BitOr | BitXor | BitAnd | BidirCmp
 
     unary_op = BitInv | Not | UAdd | USub
 
     cmp_op = Eq | NotEq | Lt | LtE | Gt | GtE | In | NotIn
 
-    arguments = (arg* args)
+    attr_op = AttrInst | AttrStatic
 
-    arg = (identifier name, expr type)
+    arg_defs = (arg_def* args)
+
+    arg_def = (identifier name, expr type)
 
 }
