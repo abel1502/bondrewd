@@ -292,6 +292,7 @@ class CXXCallMakerVisitor(GrammarVisitor):
 
 class CXXTypeDeductionVisitor(GrammarVisitor):
     # TODO: Also unwrap quoted types!
+    # TODO: Also deduce types for alts with a single nonterminal and no actions
     
     pass  # TODO: Implement
 
