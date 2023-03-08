@@ -46,6 +46,12 @@ public:
         );
     }
     #pragma endregion Uniform fields access
+
+    #pragma region Extras
+    {% filter indent(width=4) %}
+    {{- asdl_type.extras }}
+    {%- endfilter %}
+    #pragma endregion Extras
 };
 {%- elif asdl_type is instanceof asdl.Sum %}
 {#- Sum = abstract class #}
@@ -69,6 +75,12 @@ public:
     {{- gen_fields(asdl_type.attributes) }}
     {%- endfilter %}
     #pragma endregion Attributes
+
+    #pragma region Extras
+    {% filter indent(width=4) %}
+    {{- asdl_type.extras }}
+    {%- endfilter %}
+    #pragma endregion Extras
 };
 
 {%- for alt in asdl_type.types %}

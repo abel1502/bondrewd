@@ -36,7 +36,7 @@ parser.add_argument(
 )
 
 
-builtin_types: typing.Final[typing.Dict[str, str]] = {
+builtin_types: typing.Dict[str, str] = {
     "identifier": "identifier",
     "int": "int",
     "unsigned": "unsigned",
@@ -73,13 +73,12 @@ class _helpers:
     def field_type(field: asdl.Field) -> str:
         raw_type: str = _helpers.type_name(field.type)
         
-        if field.type in builtin_types:
-            assert not field.opt, "Optional builtin types are not yet supported."
-        
         if field.seq:
             return f"sequence<{raw_type}>"
 
         if field.opt:
+            if field.type in builtin_types:
+                return f"std::optional<{raw_type}>"
             return f"maybe<{raw_type}>"
         
         return f"field<{raw_type}>"
@@ -104,6 +103,13 @@ class _helpers:
     #     return [type.name for type in module.dfns if not isinstance(type.value, asdl.Sum)]
 
 
+def register_aliases(module: asdl.Module) -> None:
+    for type in module.dfns:
+        if not isinstance(type.value, asdl.Alias):
+            continue
+        builtin_types[type.name] = type.value.native_type
+
+
 def main():
     args = parser.parse_args()
     
@@ -111,6 +117,9 @@ def main():
     output_dir: pathlib.Path = args.output
     
     asdl_module: asdl.Module = asdl.parse(asdl_file)
+    
+    register_aliases(asdl_module)  # TODO: Handle differently?
+    
     assert asdl.check(asdl_module, builtin_types)
     
     # TODO: Name the unnamed fields!

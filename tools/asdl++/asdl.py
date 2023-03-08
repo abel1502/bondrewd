@@ -26,10 +26,11 @@ import re
 from os import PathLike
 import enum
 import dataclasses
+import textwrap
 
 
 __all__ = [
-    "builtin_types", "parse", "AST", "Module", "Type", "Constructor",
+    "default_builtin_types", "parse", "AST", "Module", "Type", "Constructor",
     "Field", "Sum", "Product", "VisitorBase", "Check", "check"
 ]
 
@@ -68,9 +69,9 @@ class Module(AST):
 
 class Type(AST):
     name: str
-    value: Sum | Product
+    value: Sum | Product | Alias
     
-    def __init__(self, name: str, value: Sum | Product):
+    def __init__(self, name: str, value: Sum | Product | Alias):
         self.name = name
         self.value = value
 
@@ -81,13 +82,16 @@ class Type(AST):
 class Constructor(AST):
     name: str
     fields: typing.List[Field]
+    extras: str
     
-    def __init__(self, name: str, fields: typing.List[Field] | None = None):
+    def __init__(self, name: str, fields: typing.List[Field] | None = None,
+                 extras: str = ""):
         self.name = name
         self.fields = fields or []
+        self.extras = extras
 
     def __repr__(self):
-        return f"Constructor({self.name}, {self.fields})"
+        return f"Constructor({self.name}, {self.fields}, {self.extras!r})"
 
 
 class Field(AST):
@@ -134,25 +138,43 @@ class Field(AST):
 class Sum(AST):
     types: typing.List[Constructor]
     attributes: typing.List[Field]
+    extras: str
     
-    def __init__(self, types: typing.List[Constructor], attributes: typing.List[Field] | None = None):
+    def __init__(self, types: typing.List[Constructor],
+                 attributes: typing.List[Field] | None = None,
+                 extras: str = ""):
         self.types = types
         self.attributes = attributes or []
+        self.extras = extras
 
     def __repr__(self):
-        return f"Sum({self.types}{', ' if self.attributes else ''}{self.attributes or ''})"
+        return f"Sum({self.types}{', ' if self.attributes else ''}{self.attributes or ''}, {self.extras!r})"
 
 
 class Product(AST):
     fields: typing.List[Field]
     attributes: typing.List[Field]
+    extras: str
     
-    def __init__(self, fields: typing.List[Field], attributes: typing.List[Field] | None = None):
+    def __init__(self, fields: typing.List[Field],
+                 attributes: typing.List[Field] | None = None,
+                 extras: str = ""):
         self.fields = fields
         self.attributes = attributes or []
+        self.extras = extras
 
     def __repr__(self):
-        return f"Product({self.fields}{', ' if self.attributes else ''}{self.attributes or ''})"
+        return f"Product({self.fields}{', ' if self.attributes else ''}{self.attributes or ''}, {self.extras!r})"
+
+
+class Alias(AST):
+    native_type: str
+    
+    def __init__(self, native_type: str):
+        self.native_type = native_type
+    
+    def __repr__(self):
+        return f"Alias({self.native_type!r})"
 
 
 # A generic visitor for the meta-AST that describes ASDL. This can be used by
@@ -275,6 +297,7 @@ class TokenKind(enum.Enum):
     
     ConstructorId = enum.auto()
     TypeId = enum.auto()
+    String = enum.auto()
     Equals = enum.auto()
     Comma = enum.auto()
     Question = enum.auto()
@@ -284,11 +307,12 @@ class TokenKind(enum.Enum):
     RParen = enum.auto()
     LBrace = enum.auto()
     RBrace = enum.auto()
+    Plus = enum.auto()
 
 
 TokenKind.operator_table: typing.Mapping[str, TokenKind] = {
     "=": TokenKind.Equals, ",": TokenKind.Comma,    "?": TokenKind.Question, "|": TokenKind.Pipe,  "(": TokenKind.LParen,
-    ")": TokenKind.RParen, "*": TokenKind.Asterisk, "{": TokenKind.LBrace,   "}": TokenKind.RBrace
+    ")": TokenKind.RParen, "*": TokenKind.Asterisk, "{": TokenKind.LBrace,   "}": TokenKind.RBrace, "+": TokenKind.Plus,
 }
 
 
@@ -314,22 +338,123 @@ class ASDLSyntaxError(Exception):
 def tokenize_asdl(buf: str) -> typing.Generator[Token, None, None]:
     """ Tokenize the given buffer. Yield Token objects. """
     
-    for lineno, line in enumerate(buf.splitlines(), 1):
-        for m in re.finditer(r"\s*(\w+|--.*|.)", line.strip()):
-            c = m.group(1)
-            if c[0].isalpha():
-                # Some kind of identifier
-                yield Token(TokenKind.ConstructorId if c[0].isupper() else TokenKind.TypeId, c, lineno)
-            elif c[:2] == "--":
-                # Comment
-                break
-            else:
-                # Operators
-                try:
-                    op_kind = TokenKind.operator_table[c]
-                except KeyError:
-                    raise ASDLSyntaxError(f"Invalid operator {c}", lineno)
-                yield Token(op_kind, c, lineno)
+    # [abel1502 addition] {
+    lineno: int = 1
+    pos: int = 0
+    
+    def at_end() -> bool:
+        return pos >= len(buf)
+    
+    def matches(op: str) -> bool:
+        return buf[pos:pos + len(op)] == op
+    
+    def skip_whitespace() -> None:
+        nonlocal pos, lineno
+        while (not at_end() and buf[pos].isspace()) or matches("--"):
+            if matches("--"):
+                while not at_end() and buf[pos] != "\n":
+                    pos += 1
+            if buf[pos] == "\n":
+                lineno += 1
+            pos += 1
+    
+    string_escapes: typing.Mapping[str, str] = {
+        'a': '\a', 'b': '\b', 'f': '\f', 'n': '\n',
+        'r': '\r', 't': '\t', 'v': '\v', '\\': '\\',
+        "'": "'", '"': '"', '\n': '', '': '',
+    }
+    
+    def get_string(quotes: str, *, multiline: bool) -> Token:
+        nonlocal pos, lineno
+        lineno_diff: int = 0
+        
+        assert matches(quotes)
+        pos += len(quotes)
+        
+        value: list[str] = []
+        
+        while not at_end() and not matches(quotes):
+            if buf[pos] == "\\":
+                pos += 1
+                escape: str = buf[pos:pos + 1]
+                pos += 1
+                
+                if escape not in string_escapes:
+                    raise ASDLSyntaxError(f"Invalid escape sequence \\{escape}")
+                
+                value.append(string_escapes[escape])
+                if escape == "\n":
+                    lineno_diff += 1
+                continue
+            
+            if buf[pos] == "\n":
+                if not multiline:
+                    raise ASDLSyntaxError("Newline in a single-line string")
+                lineno_diff += 1
+            
+            value.append(buf[pos])
+            pos += 1
+        
+        if not matches(quotes):
+            raise ASDLSyntaxError("Unterminated string")
+        pos += len(quotes)
+        
+        str_value: str = textwrap.dedent("".join(value))
+        
+        result = Token(TokenKind.String, str_value, lineno)
+        lineno += lineno_diff
+        return result
+    
+    def get_token() -> Token:
+        nonlocal pos, lineno
+        
+        assert not at_end()
+        
+        if buf[pos:pos + 3] in ('"""', "'''"):
+            return get_string(buf[pos:pos + 3], multiline=True)
+        
+        ch: str = buf[pos:pos + 1]
+        
+        if ch in ('"', "'"):
+            return get_string(ch, multiline=False)
+        
+        if ch.isalpha():
+            identifier: str = re.match(r"\w+", buf[pos:]).group(0)
+            pos += len(identifier)
+            kind: TokenKind = TokenKind.ConstructorId if identifier[0].isupper() else TokenKind.TypeId
+            return Token(kind, identifier, lineno)
+        
+        try:
+            op_kind = TokenKind.operator_table[ch]
+        except KeyError:
+            raise ASDLSyntaxError(f"Invalid operator {ch}", lineno)
+        pos += 1
+        return Token(op_kind, ch, lineno)
+        
+    while True:
+        skip_whitespace()
+        if at_end():
+            break
+        yield get_token()
+    # } [abel1502 addition]
+    
+    # for lineno, line in enumerate(buf.splitlines(), 1):
+    #     tokens_iter = re.finditer(r"\s*(\w+|--.*|.)", line.strip())
+    #     for m in tokens_iter:
+    #         c = m.group(1)
+    #         if c[0].isalpha():
+    #             # Some kind of identifier
+    #             yield Token(TokenKind.ConstructorId if c[0].isupper() else TokenKind.TypeId, c, lineno)
+    #         elif c[:2] == "--":
+    #             # Comment
+    #             break
+    #         else:
+    #             # Operators
+    #             try:
+    #                 op_kind = TokenKind.operator_table[c]
+    #             except KeyError:
+    #                 raise ASDLSyntaxError(f"Invalid operator {c}", lineno)
+    #             yield Token(op_kind, c, lineno)
 
 
 class ASDLParser:
@@ -381,25 +506,28 @@ class ASDLParser:
         if self.cur_token.kind == TokenKind.LParen:
             # If we see a (, it's a product
             return self._parse_product()
+        # [abel1502 addition] {
+        elif self.cur_token.kind == TokenKind.String:
+            return Alias(self._match(TokenKind.String))
+        # } [abel1502 addition]
         else:
             # Otherwise it's a sum. Look for ConstructorId
-            sumlist = [Constructor(
-                self._match(TokenKind.ConstructorId),
-                self._parse_optional_fields()
-            )]
+            sumlist = [self._parse_constructor()]
             while self.cur_token.kind  == TokenKind.Pipe:
                 # More constructors
                 self._advance()
-                sumlist.append(
-                    Constructor(
-                        self._match(TokenKind.ConstructorId),
-                        self._parse_optional_fields()
-                    )
-                )
-            return Sum(sumlist, self._parse_optional_attributes())
+                sumlist.append(self._parse_constructor())
+            return Sum(sumlist, self._parse_optional_attributes(), self._parse_optional_extras())
 
     def _parse_product(self) -> Product:
-        return Product(self._parse_fields(), self._parse_optional_attributes())
+        return Product(self._parse_fields(), self._parse_optional_attributes(), self._parse_optional_extras())
+
+    def _parse_constructor(self) -> Constructor:
+        return Constructor(
+            self._match(TokenKind.ConstructorId),
+            self._parse_optional_fields(),
+            self._parse_optional_extras(by_plus=True)
+        )
 
     def _parse_fields(self) -> typing.List[Field]:
         fields: typing.List[Field] = []
@@ -427,6 +555,13 @@ class ASDLParser:
             self._advance()
             return self._parse_fields()
         return None
+    
+    def _parse_optional_extras(self, by_plus: bool = False) -> str:
+        if (by_plus and self.cur_token.kind == TokenKind.Plus) or (not by_plus and self._at_keyword("extras")):
+            self._advance()
+            return self._match(TokenKind.String)
+        
+        return ""
 
     def _parse_optional_field_quantifier(self) -> typing.Tuple[bool, bool]:
         is_seq, is_opt = False, False

@@ -7,16 +7,11 @@ module Bondrewd {
     cartridge = Cartridge(stmt* body)
 
     -- TODO: More data for classdef and impldef
-    stmt = Def(definition def)
-         | Impl(identifier class_name, identifier? trait_name, definition* body, bool ctime)
+    stmt = VarDef(identifier name, expr? type, expr? value, bool mut, bool ctime)
+         | Impl(identifier class_name, identifier? trait_name, expr body, bool ctime)
          | Assign(expr target, expr value, assign_op op)
          | Expr(expr value)
          | Pass
-    
-    definition = VarDef(expr? type, expr? value, bool mut)
-               | FuncDef(arg_defs args, expr? return_type, expr body)
-               | ClassDef(definition* body)
-        attributes (identifier name, bool ctime)
 
     -- TODO: allow marking any expression as ctime?
     expr = Name(identifier value)
@@ -25,6 +20,8 @@ module Bondrewd {
          | Call(expr func, call_args args)
          | Subscript(expr value, call_args args)
          | Block(stmt* body, expr value, bool ctime)
+         | FuncDef(identifier name, arg_defs args, expr? return_type, expr body)
+         | ClassDef(identifier name, expr body, bool ctime)
          | BinOp(expr left, binary_op op, expr right)
          | UnOp(unary_op op, expr operand)
          | Compare(expr left, cmp_op* op, expr* operands)
