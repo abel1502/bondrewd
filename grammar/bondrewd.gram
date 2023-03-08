@@ -23,8 +23,8 @@ cartridge_header['std::string']:
 
 # stmt {
 stmt['ast::stmt']:
+    | var_def_stmt
     | impl_stmt
-    | definition_stmt
     | assign_stmt
     | expr_stmt
     | ';'  { ast::Pass() }
@@ -45,33 +45,13 @@ assign_op['ast::assign_op']"
     | '|='  { ast::AsgnBitOr() }
     | '^='  { ast::AsgnBitXor() }
 
-# TODO
-impl_stmt['ast::stmt']:
-    | c='ctime'? 'impl' c=NAME '{' d=definition* '}' ';'
-# }  // stmt
-
-# definition {
-definition_stmt['ast::stmt']:
-    | a=definition  { ast::Definition(std::move(a)) }
-
-definition['ast::definition']:
-    | var_def_stmt
-    | func_def_stmt
-    | class_def_stmt
-
-type_annotation['ast::expr']:
-    | ':' a=expr  { std::move(a) }
-
-var_def['ast::definition']:
+var_def_stmt['ast::stmt']:
     | c='ctime'? 'var' n=NAME t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(n.get_name().value, std::move(t), std::move(v), true, bool(c)) }
 
-func_def['ast::definition']:
-    | 'func' n=NAME '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(n.get_name().value, std::move(a), std::move(t), std::move(b)) }
-
-# TODO
-class_def['ast::definition']:
-    | c='ctime'? 'class' n=NAME '{'  '}' ';'
-# }  // definition
+# TODO: Decide on the body contents
+impl_stmt['ast::stmt']:
+    | c='ctime'? 'impl' c=NAME '{' d=()* '}' ';'
+# }  // stmt
 
 # expr {
 expr_stmt['ast::stmt']:
@@ -79,9 +59,8 @@ expr_stmt['ast::stmt']:
 
 # TODO: Support constants!
 expr['ast::expr']:
-    | a=NAME  { ast::Name(a.get_name().value) }
-    | a=NUMBER  { ast::Constant(a.get_number().value) }
-    | a=STRING  { ast::Constant(a.get_string().value) }  # TODO: Account for quote type!
+    | func_def
+    | class_def
     | block
     | if_expr
     | for_expr
@@ -173,6 +152,10 @@ atom_expr['ast::expr']:
     | tuple_expr
     | block_expr
 
+# TODO: _concat_strings!
+strings['std::string']:
+    | a=STRING+  { _concat_strings(a) }
+
 group_expr['ast::expr']:
     | '(' a=expr ')'  { std::move(a) }
 
@@ -182,6 +165,16 @@ tuple_expr['ast::expr']:
 
 block_expr['ast::expr']:
     | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
+
+type_annotation['ast::expr']:
+    | ':' a=expr  { std::move(a) }
+
+func_def['ast::expr']:
+    | 'func' n=NAME '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(n.get_name().value, std::move(a), std::move(t), std::move(b)) }
+
+# TODO
+class_def['ast::expr']:
+    | c='ctime'? 'class' n=NAME '(' a=func_args_def ')' ';'
 # }  // expr
 
 # TODO: Finish!
