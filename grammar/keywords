@@ -7,6 +7,7 @@ MATCH                   "match"
 # TODO: Maybe a different keyword?
 CTIME                   "ctime"
 VAR                     "var"
+# DEF                     "def"
 FUNC                    "func"
 CLASS                   "class"
 TRAIT                   "trait"
