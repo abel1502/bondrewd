@@ -34,9 +34,36 @@ class Foo[T: type] {
 // but allow to use everything in method scopes. Like Python does.
 impl[T: type] Foo[T] {
     if (T != int32) {
-        public def sum(&self) -> uint64 => {
+        public func sum(&self) -> uint64 => {
             bar + *baz
         };
     };
 };
+```
+
+```{code-block} bondrewd
+:caption: "Function definition syntax options"
+// 1. Optional trailing return type in the form of `-> type`;
+//    required `=>` before the body; any expression for the body.
+func foo(a: int32, b: int32) -> int32 => {
+    a + b
+};
+
+// 2. Same as 1, but with `: type` for the return type instead.
+func foo(a: int32, b: int32): int32 => {
+    a + b
+};
+```
+
+```{code-block} bondrewd
+:caption: "Class definition in a function-like manner"
+// Essentially, you specify the constructor signature instead of the fields.
+// This means that static fields must be declared in an `impl` block, along
+// with methods. I'm considering allowing one `impl` block to be implicitly
+// declared as a braced block immediately after the class definition...
+class Foo[T: type] (
+    bar: int32,
+    baz: &uint64,
+    field: T
+);
 ```
