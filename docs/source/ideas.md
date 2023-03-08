@@ -4,14 +4,24 @@ Language ideas
 This document features a list of ideas for key language features. These should
 give a general idea of the direction the language will evolve in.
 
- - [ ] Compile-time metaprogramming. Ideally, I'm striving for flexibility
+ - **Compile-time metaprogramming**. Ideally, I'm striving for flexibility
     similar to Python's, but entirely at compile-time. As few things as possible
     should be implemented as language features, and instead most things should be
     done through the standard library. If compiler support is required, it should
     be concealed behind a trivial standard library implementation, so that from
     within the language, it should be indistinguishable from something
     implemented in it.
- - [ ] ...
+ - **Argument collectors**. In modern languages, function arguments aren't
+    limited to a sequence of values. Some support variadic arguments, some
+    support keyword ones... I believe this shouldn't be a language feature, but
+    rather a library one. For that reason I'm considering an abstraction of an
+    argument collector: an object responsible for handling the arguments passed
+    to a function. This would also have the added benefit of simplifying the
+    process of writing function wrappers, as one could simply reuse the argument
+    collector of the wrapped function in the wrapping one. The idea is still
+    rather vague, but I'm considering it as one of the crucial features of the
+    language.
+ - ...
 
 ## Code samples
 This section features some code samples that I'm considering for the language.
@@ -100,5 +110,48 @@ ctime impl Bar for Foo {
     // All vars and methods are implicitly `ctime`
     func sum(&self): int32 => self.a + self.b;
 };
+```
+
+```{code-block} bondrewd
+:caption: "`.` vs `::` for attribute access"
+
+class MyInt(@private int32 value);
+
+impl PrivateCtor for MyInt {};
+
+impl MyInt {
+    // A static variable
+    var total: int32 = 0;
+
+    // Also a static variable, but with a special attribute
+    @std::as_type_field
+    var total_2: int32 = 0;
+};
+
+var my_int_val = MyInt(5);
+
+// To access a static variable of a class, you use `::`
+MyInt::total += 1;
+my_int_val::total += 1;
+
+// `.` accesses instance attributes. That includes instance attributes of types,
+// defined in the corresponding metatype
+my_int_val.value += 1;
+std::dbg::ctime_assert(MyInt.name == "MyInt");
+
+// However, I think I'd like to have some cool methods on some types, like:
+type.of(my_int_val) my_int_val_2;  // Actually, with this specific one there's
+    // another problem: `of` must be a ctime function, so it cannot accept
+    // non-ctime arguments...
+    // One possible solution could be to allow constant-folding functions with
+    // non-ctime but unused arguments... Note: we should probably either still
+    // compute their expressions at runtime, just to enforce side-effects, or
+    // check that no side-effects occur in them. Alternatively, we could allow
+    // adding an `unused` marker to an argument, suggesting that its evaluation
+    // can be dropped but forbidding its use in the function body. Maybe just
+    // having no name could act as such a marker, but that could be confusing.
+int32 c = int32::max;
+int32 d = int32.parse("123");
+
 ```
 
