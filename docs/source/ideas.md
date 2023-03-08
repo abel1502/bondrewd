@@ -34,7 +34,7 @@ class Foo[T: type] {
 // but allow to use everything in method scopes. Like Python does.
 impl[T: type] Foo[T] {
     if (T != int32) {
-        public func sum(&self) -> uint64 => {
+        public func sum(&self): uint64 => {
             bar + *baz
         };
     };
@@ -68,3 +68,37 @@ class Foo[T: type] (
     field: T
 );
 ```
+
+```{code-block} bondrewd
+:caption: "`ctime` declarations"
+
+// `ctime` functions could be declared in one of two ways:
+// (I should pick one of these)
+
+// 1. With a `ctime` keyword before the function body
+//    (Essentially, just by making its result a compile-time expression)
+func foo(a: int32, b: int32): int32 => ctime {
+    a + b
+};
+
+// 2. With a `ctime` keyword before the declaration
+ctime func foo(a: int32, b: int32): int32 => {
+    a + b
+};
+
+// `ctime` classes are unambiguous:
+ctime class Foo(int32 a, int32 b);
+
+// Same thing goes for `ctime` traits:
+ctime trait Bar {
+    func sum(&self): int32;
+};
+
+// `ctime` impls are (probably) the same thing:
+// (A `ctime` impl is only applicable to `ctime` classes and `ctime` traits)
+ctime impl Bar for Foo {
+    // All vars and methods are implicitly `ctime`
+    func sum(&self): int32 => self.a + self.b;
+};
+```
+
