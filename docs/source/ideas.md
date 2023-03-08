@@ -45,10 +45,11 @@ impl[T: type] Foo[T] {
 :caption: "Function definition syntax options"
 // 1. Optional trailing return type in the form of `-> type`;
 //    required `=>` before the body; any expression for the body.
-func foo(a: int32, b: int32) -> int32 => {
-    a + b
-};
+// func foo(a: int32, b: int32) -> int32 => {
+//     a + b
+// };
 
+// I guess I prefer this one
 // 2. Same as 1, but with `: type` for the return type instead.
 func foo(a: int32, b: int32): int32 => {
     a + b
