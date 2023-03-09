@@ -198,5 +198,10 @@ trait type {
     func of[T: type](@std::unused_arg value: T) -> type {
         T
     };
+
+    // Alternatively, I'm considering something like this:
+    func of[T: type](value: std::unused_arg_collector[T]) -> type {
+        T
+    };
 };
 ```
