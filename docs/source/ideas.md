@@ -174,9 +174,9 @@ func increment(
     args.a + 1
 };
 
-// Any function has a root arg_collector, even if it's defined with normal
+// Any function has a root args_collector, even if it's defined with normal
 // arguments
-func logged_increment(args: increment.arg_collector) => {
+func logged_increment(args: increment.args_collector) => {
     log("Before");
     var res = increment(args);
     log("After");
@@ -185,6 +185,16 @@ func logged_increment(args: increment.arg_collector) => {
     //       for its return expression type, and then have it implicitly cast to
     //       `int32`
     return res;
+};
+
+// I'm not sure if I should allow to use argument collectors in `ctime`
+// functions. But if I do, it could become part of the macros' implementation
+
+// This is an example of the features the standard argument collector provides.
+// (`std::unused_arg` is showcased in the `type.of(...)` example below)
+// Note that the array syntax might be different. I'm still thinking about it.
+func foo(a: int32, b: int32 = 5, @std::varargs c: int32[]): int32 => {
+    a + b + c.sum()
 };
 ```
 
@@ -200,8 +210,36 @@ trait type {
     };
 
     // Alternatively, I'm considering something like this:
-    func of[T: type](value: std::unused_arg_collector[T]) -> type {
-        T
-    };
+    // func of[T: type](value: std::unused_arg_collector[T]) -> type {
+    //     T
+    // };
+    
+    // Actually, after having reconsidered how argument collectors should work,
+    // I've come to the conclusion that there should only be a single argument
+    // collection per function. That means that unused arguments must be marked
+    // instead of being collected into a separate argument collector.
+};
+```
+
+```{code-block} bondrewd
+:caption: "Imposing trait requirements on a type value"
+
+trait Foo {
+    func foo(&self) -> Unit;
+};
+
+// These two definitions are essentially the same thing, with two exceptions:
+//  - The second case checks that `T` implements `Foo` at compile-time
+//    (which you can also do manually in the first case, though)
+//  - The second case doesn't allow to explicitly specify the type of `value`
+//    (although I'm considering adding a mechanism to get the result of
+//     overload resolution as an object...)
+
+func bar[T: type](value: T) => {
+    value.foo();
+};
+
+func baz(value: Foo) => {
+    value.foo();
 };
 ```
