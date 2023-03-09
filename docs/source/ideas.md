@@ -6,10 +6,10 @@ give a general idea of the direction the language will evolve in.
 
  - **Compile-time metaprogramming**. Ideally, I'm striving for flexibility
     similar to Python's, but entirely at compile-time. As few things as possible
-    should be implemented as language features, and instead most things should be
-    done through the standard library. If compiler support is required, it should
-    be concealed behind a trivial standard library implementation, so that from
-    within the language, it should be indistinguishable from something
+    should be implemented as language features, and instead most things should
+    be done through the standard library. If compiler support is required, it
+    should be concealed behind a trivial standard library implementation, so
+    that from within the language, it should be indistinguishable from something
     implemented in it.
  - **Argument collectors**. In modern languages, function arguments aren't
     limited to a sequence of values. Some support variadic arguments, some
@@ -21,7 +21,7 @@ give a general idea of the direction the language will evolve in.
     collector of the wrapped function in the wrapping one. The idea is still
     rather vague, but I'm considering it as one of the crucial features of the
     language.
- - ...
+ - **...**
 
 ## Code samples
 This section features some code samples that I'm considering for the language.
@@ -153,5 +153,29 @@ type.of(my_int_val) my_int_val_2;  // Actually, with this specific one there's
 int32 c = int32::max;
 int32 d = int32.parse("123");
 
+// To have static variables accessible through `.`, I'm considering adding a
+// special annotation to tell the type factory that it should be that way.
+// With it, you have no guarantees agains current or possible future name
+// collisions, so it might be a good idea to mark the annotation with a leading
+// underscore...
+// By the way, static attributes are stored in `MyInt.statics`
+MyInt.total_2 += 1;
 ```
 
+```{code-block} bondrewd
+:caption: "Argument collectors"
+func increment(args: std::args_collector::build().with_arg("a", int32).build()): int32 => {
+    args.a + 1
+}
+
+// Any function has a root arg_collector, even if it's defined with normal
+// arguments
+func logged_increment(args: increment.arg_collector) => {
+    log("Before");
+    var res = increment(args);
+    log("After");
+    // TODO: How do I allow to say `return res;` and then not complain about an
+    //       implicit unit return?
+    res
+}
+```
