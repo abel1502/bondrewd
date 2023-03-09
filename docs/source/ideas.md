@@ -29,6 +29,7 @@ I use these to make better decisions about the language design.
 
 ```{code-block} bondrewd
 :caption: "`class` and `impl` considerations"
+
 cartridge test;
 
 
@@ -53,6 +54,7 @@ impl[T: type] Foo[T] {
 
 ```{code-block} bondrewd
 :caption: "Function definition syntax options"
+
 // 1. Optional trailing return type in the form of `-> type`;
 //    required `=>` before the body; any expression for the body.
 // func foo(a: int32, b: int32) -> int32 => {
@@ -68,6 +70,7 @@ func foo(a: int32, b: int32): int32 => {
 
 ```{code-block} bondrewd
 :caption: "Class definition in a function-like manner"
+
 // Essentially, you specify the constructor signature instead of the fields.
 // This means that static fields must be declared in an `impl` block, along
 // with methods. I'm considering allowing one `impl` block to be implicitly
@@ -164,7 +167,10 @@ MyInt.total_2 += 1;
 
 ```{code-block} bondrewd
 :caption: "Argument collectors"
-func increment(args: std::args_collector::build().with_arg("a", int32).build()): int32 => {
+
+func increment(
+    args: std::args_collector::build().with_arg("a", int32).build()
+): int32 => {
     args.a + 1
 }
 
@@ -175,7 +181,22 @@ func logged_increment(args: increment.arg_collector) => {
     var res = increment(args);
     log("After");
     // TODO: How do I allow to say `return res;` and then not complain about an
-    //       implicit unit return?
-    res
+    //       implicit unit return? I guess I'd like this block to have a `Never`
+    //       for its return expression type, and then have it implicitly cast to
+    //       `int32`
+    return res;
 }
+```
+
+```{code-block} bondrewd
+:caption: "Example implementation of `type.of(...)`"
+
+trait type {
+    // A lot of other things...
+
+    // I'm not sure how template type deduction should be implemented, actually
+    func of[T: type](@std::unused_arg value: T) -> type {
+        T
+    }
+};
 ```
