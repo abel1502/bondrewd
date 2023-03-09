@@ -172,7 +172,7 @@ func increment(
     args: std::args_collector::build().with_arg("a", int32).build()
 ): int32 => {
     args.a + 1
-}
+};
 
 // Any function has a root arg_collector, even if it's defined with normal
 // arguments
@@ -185,7 +185,7 @@ func logged_increment(args: increment.arg_collector) => {
     //       for its return expression type, and then have it implicitly cast to
     //       `int32`
     return res;
-}
+};
 ```
 
 ```{code-block} bondrewd
@@ -197,6 +197,6 @@ trait type {
     // I'm not sure how template type deduction should be implemented, actually
     func of[T: type](@std::unused_arg value: T) -> type {
         T
-    }
+    };
 };
 ```
