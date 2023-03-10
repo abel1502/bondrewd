@@ -3,8 +3,6 @@ import typing
 import argparse
 import pathlib
 import dataclasses
-from ast import literal_eval
-import tokenize
 
 import sys
 sys.path.append(str(pathlib.Path(__file__).parent.parent))
@@ -13,8 +11,8 @@ from token_listing import *
 
 from cxx_generator import CXXParserGenerator
 from pegen.grammar import Grammar
-from pegen.tokenizer import Tokenizer
-from pegen.grammar_parser import GeneratedParser as GrammarParser
+
+from custom_pegen_grammar_parser import parse_grammar
 
 
 parser = argparse.ArgumentParser("""\
@@ -86,18 +84,13 @@ def main():
         output_dir / "include/bondrewd/parse/parser.gen.hpp",
         generator=generator,
     )
-
-
-def parse_grammar(grammar_file: pathlib.Path) -> Grammar:
-    with grammar_file.open("r") as f:
-        tokengen = tokenize.generate_tokens(f.readline)
-        tokenizer = Tokenizer(tokengen)
-        grammar: Grammar | None = GrammarParser(tokenizer).start()
     
-    if grammar is None:
-        raise RuntimeError("Failed to parse grammar file.")
-    
-    return grammar
+    render_tpl(
+        env,
+        "parser.tpl.cpp",
+        output_dir / "src/parse/parser.gen.cpp",
+        generator=generator,
+    )
 
 
 if __name__ == "__main__":
