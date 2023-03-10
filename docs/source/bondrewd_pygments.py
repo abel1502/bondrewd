@@ -31,7 +31,9 @@ class BondrewdLexer(lexer.RegexLexer):
             (r'0o', token.Number.Oct, 'number_oct'),
             (r'0b', token.Number.Bin, 'number_bin'),
             (r'(?=\d|\.\d)', token.Number, 'number_dec'),
+            (r'"""', token.String, 'string_md'),
             (r'"', token.String, 'string_d'),
+            (r'\'\'\'', token.String, 'string_ms'),
             (r'\'', token.String, 'string_s'),
             (lexer.words([literal_eval(p.value) for p in puncts]), token.Punctuation),
             (r'\s', token.Text),
@@ -42,15 +44,27 @@ class BondrewdLexer(lexer.RegexLexer):
             (r'\*/', token.Comment.Multiline, '#pop'),
             (r'[\*/]', token.Comment.Multiline)
         ],
+        'string_ms': [
+            (r'\\.', token.String.Escape),
+            (r'\'\'\'', token.String, '#pop'),
+            (r'\'', token.String),
+            (r'[^\\\']+', token.String),
+        ],
         'string_s': [
             (r'\\.', token.String.Escape),
-            (r'\'', token.String, '#pop'),
-            (r'[^\\\']+', token.String),
+            (r'[\'\n]', token.String, '#pop'),
+            (r'[^\\\'\n]+', token.String),
+        ],
+        'string_md': [
+            (r'\\.', token.String.Escape),
+            (r'"""', token.String, '#pop'),
+            (r'"', token.String),
+            (r'[^\\"]+', token.String),
         ],
         'string_d': [
             (r'\\.', token.String.Escape),
-            (r'"', token.String, '#pop'),
-            (r'[^\\"]+', token.String),
+            (r'["\n]', token.String, '#pop'),
+            (r'[^\\"\n]+', token.String),
         ],
         'number_hex': [
             (r'[0-9a-fA-F]*(?:.[0-9a-fA-F]*)?(?:[pP][0-9a-fA-F]*)?', token.Number.Hex, '#pop'),
