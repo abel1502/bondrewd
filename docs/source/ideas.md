@@ -11,7 +11,7 @@ give a general idea of the direction the language will evolve in.
     should be concealed behind a trivial standard library implementation, so
     that from within the language, it should be indistinguishable from something
     implemented in it.
- - **Argument collectors**. In modern languages, function arguments aren't
+ - **~~Argument collectors~~**. In modern languages, function arguments aren't
     limited to a sequence of values. Some support variadic arguments, some
     support keyword ones... I believe this shouldn't be a language feature, but
     rather a library one. For that reason I'm considering an abstraction of an
@@ -31,6 +31,18 @@ give a general idea of the direction the language will evolve in.
     Maybe instead of collectors I should introduce "argument acceptors":
     objects responsible for turning an AST expression into some sort of value.
     Can `unused` be implemented through this?
+ - **Macros**. I'm pretty certain I want to be able to influence ASTs with
+    (procedural) macros. Token stream-based macros seem cool, but might cause
+    issues with namespace encapsulation and stuff like that. Maybe it would be
+    fine if macros had a way to specify a limit of what grammatical constructs
+    they could generate. That way the compiler can be sure that the macro won't
+    create new scopes, for instance. Alternatively, we could just limit all
+    token-based macros to creating exclusively expressions. The only things it
+    would prevent them from creating are `impl`s, namespaces, variable
+    declarations (in the immediate scope) and assignments. Maybe we could even
+    allow statements as well, as long as the result is balanced (i.e. can be
+    parsed completely). Also not sure how I feel about macros defining new
+    macros. Overall, still got things to think about here.
  - **...**
 
 ## Code samples

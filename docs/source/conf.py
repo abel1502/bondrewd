@@ -35,6 +35,11 @@ myst_enable_extensions = [
     'fieldlist',
 ]
 
+suppress_warnings = [
+    # MYST warning that strikethrough is supported only for HTML
+    "myst.strikethrough",
+]
+
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
