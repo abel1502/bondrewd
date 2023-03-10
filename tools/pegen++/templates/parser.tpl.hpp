@@ -31,7 +31,9 @@ public:
     #pragma endregion Service constructors
 
     #pragma region API
+    {% filter indent(4) -%}
     {{ generator.gen_api() }}
+    {%- endfilter %}
     #pragma endregion API
 
 protected:
@@ -168,7 +170,7 @@ protected:
     #pragma endregion Caching
 
     #pragma region Rule parsers
-    {%- filter indent(4) %}
+    {% filter indent(4) -%}
     {{ generator.gen_rule_parsers() }}
     {%- endfilter %}
     #pragma endregion Rule parsers
