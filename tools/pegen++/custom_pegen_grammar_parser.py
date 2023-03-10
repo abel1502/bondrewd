@@ -624,7 +624,7 @@ class CustomGrammarParser(Parser):
 
     @memoize
     def target_atom(self) -> Optional[str]:
-        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | NAME "*" | namespaced_name | NUMBER | STRING | "::" | "?" | ":" | !"}" !"]" OP
+        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | cpp_type_name | NUMBER | STRING | "?" | ":" | !"}" !"]" OP
         mark = self._mark()
         cut = False
         if (
@@ -655,16 +655,9 @@ class CustomGrammarParser(Parser):
         if cut:
             return None;
         if (
-            (name := self.name())
-            and
-            (self.expect("*"))
+            (cpp_type_name := self.cpp_type_name())
         ):
-            return name . string + "*";
-        self._reset(mark)
-        if (
-            (namespaced_name := self.namespaced_name())
-        ):
-            return namespaced_name;
+            return cpp_type_name;
         self._reset(mark)
         if (
             (number := self.number())
@@ -675,11 +668,6 @@ class CustomGrammarParser(Parser):
             (string := self.string())
         ):
             return string . string;
-        self._reset(mark)
-        if (
-            (self.expect("::"))
-        ):
-            return "::";
         self._reset(mark)
         if (
             (self.expect("?"))
@@ -699,6 +687,35 @@ class CustomGrammarParser(Parser):
             (op := self.op())
         ):
             return op . string;
+        self._reset(mark)
+        return None;
+
+    @memoize_left_rec
+    def cpp_type_name(self) -> Optional[str]:
+        # cpp_type_name: namespaced_name '<' cpp_type_name '>' | namespaced_name | cpp_type_name '*'
+        mark = self._mark()
+        if (
+            (self.namespaced_name())
+            and
+            (self.expect('<'))
+            and
+            (self.cpp_type_name())
+            and
+            (self.expect('>'))
+        ):
+            return first + "<" + rest + ">";
+        self._reset(mark)
+        if (
+            (namespaced_name := self.namespaced_name())
+        ):
+            return namespaced_name;
+        self._reset(mark)
+        if (
+            (self.cpp_type_name())
+            and
+            (self.expect('*'))
+        ):
+            return first + "*";
         self._reset(mark)
         return None;
 
