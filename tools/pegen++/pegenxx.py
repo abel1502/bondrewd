@@ -57,8 +57,6 @@ parser.add_argument(
 def main():
     args = parser.parse_args()
     
-    return  # Temporarily disabled
-    
     keywords_file: pathlib.Path = args.keywords
     puncts_file: pathlib.Path = args.puncts
     grammar_file: pathlib.Path = args.grammar
@@ -78,7 +76,7 @@ def main():
     generator = CXXParserGenerator(
         grammar,
         tokens_to_names,
-    ).generate()
+    ).prepare()
     
     env = make_env()
     

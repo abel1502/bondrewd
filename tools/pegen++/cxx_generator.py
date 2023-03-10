@@ -360,7 +360,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     @contextmanager
     def if_impl(self, with_braces: bool = False) -> typing.Generator[None, None, None]:
         self.print("#ifdef BONDREWD_PARSER_IMPL")
-        if with_braces():
+        if with_braces:
             self.print("{")
             with self.indent():
                 yield
@@ -576,7 +576,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 if is_loop:
                     self.handle_alt_loop(node, rulename)
                 else:
-                    self.handle_alt_normal(node, is_gather, rulename)
+                    self.handle_alt_normal(node, is_gather, rulename, should_cache)
 
             self.print("seek(_state);")
             
