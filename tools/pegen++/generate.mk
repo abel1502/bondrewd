@@ -18,5 +18,9 @@ _DEPENDENCIES := \
 GENERATED += $(_GENERATED)
 
 
-$(_GENERATED) : $(_DEPENDENCIES)
+$(_PEGEN_PATH)/custom_pegen_grammar_parser.py: $(_PEGEN_PATH)/custom_pegen_metagrammar.gram
+	$(PYTHON) -m pegen -q $(_PEGEN_PATH)/custom_pegen_metagrammar.gram -o $(_PEGEN_PATH)/custom_pegen_grammar_parser.py
+
+
+$(_GENERATED) : $(_DEPENDENCIES) $(_PEGEN_PATH)/custom_pegen_grammar_parser.py
 	$(PYTHON) $(_PEGEN_PATH)/pegenxx.py --grammar $(CONFIG_GRAMMAR) --keywords $(CONFIG_KEYWORDS) --puncts $(CONFIG_PUNCTS) --output $(PROJECT_ROOT)
