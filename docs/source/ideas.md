@@ -21,6 +21,16 @@ give a general idea of the direction the language will evolve in.
     collector of the wrapped function in the wrapping one. The idea is still
     rather vague, but I'm considering it as one of the crucial features of the
     language.
+
+    ... or not. The more I think about it, the more it seems to just
+    overcomplicate things. I guess it would be better to just introduce
+    keyword and variadic arguments as language features...
+    But I really do like the idea of saying "take the same arguments as this
+    function"...
+
+    Maybe instead of collectors I should introduce "argument acceptors":
+    objects responsible for turning an AST expression into some sort of value.
+    Can `unused` be implemented through this?
  - **...**
 
 ## Code samples
@@ -166,17 +176,13 @@ MyInt.total_2 += 1;
 ```
 
 ```{code-block} bondrewd
-:caption: "Argument collectors"
+:caption: "~~Argument collectors~~"
 
-func increment(
-    args: std::args_collector::build().with_arg("a", int32).build()
-): int32 => {
-    args.a + 1
+func increment(a: int32): int32 => {
+    a + 1
 };
 
-// Any function has a root args_collector, even if it's defined with normal
-// arguments
-func logged_increment(args: increment.args_collector) => {
+func logged_increment(args: increment.args_def) => {
     log("Before");
     var res = increment(args);
     log("After");
@@ -187,14 +193,13 @@ func logged_increment(args: increment.args_collector) => {
     return res;
 };
 
-// I'm not sure if I should allow to use argument collectors in `ctime`
-// functions. But if I do, it could become part of the macros' implementation
-
-// This is an example of the features the standard argument collector provides.
-// (`std::unused_arg` is showcased in the `type.of(...)` example below)
-// Note that the array syntax might be different. I'm still thinking about it.
-func foo(a: int32, b: int32 = 5, @std::varargs c: int32[]): int32 => {
-    a + b + c.sum()
+func foo(
+    a: int32,
+    b: int32 = 5,
+    @std::varargs c: int32[],
+    @std::unused_arg d: int32,
+): int32 => {
+    a + b + c.sum()  /* + d  /* nope - can't use an unused arg's value */ */
 };
 ```
 
@@ -208,11 +213,6 @@ trait type {
     func of[T: type](@std::unused_arg value: T) -> type {
         T
     };
-
-    // Alternatively, I'm considering something like this:
-    // func of[T: type](value: std::unused_arg_collector[T]) -> type {
-    //     T
-    // };
     
     // Actually, after having reconsidered how argument collectors should work,
     // I've come to the conclusion that there should only be a single argument
