@@ -70,9 +70,9 @@ def main():
     grammar: Grammar = parse_grammar(grammar_file)
     
     tokens_to_names: typing.Dict[str, str] = {
-        k.value: k.name for k in keywords
-    } + {
-        p.value: p.name for p in puncts
+        k.str_value: k.name for k in keywords
+    } | {
+        p.str_value: p.name for p in puncts
     }
     
     generator = CXXParserGenerator(

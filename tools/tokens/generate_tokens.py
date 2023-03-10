@@ -60,8 +60,8 @@ class TokensInfo:
     
     @classmethod
     def process(cls, keywords: Listing, puncts: Listing) -> TokensInfo:
-        punct_lookup_quoted = {punct.value: punct.name for punct in puncts}
-        punct_lookup = {literal_eval(key): value for key, value in punct_lookup_quoted.items()}
+        punct_lookup_quoted = {punct.quoted_value: punct.name for punct in puncts}
+        punct_lookup = {punct.str_value: punct.name for punct in puncts}
         
         misc_trie = Trie()
         string_trie = Trie()

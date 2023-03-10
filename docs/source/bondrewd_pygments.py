@@ -23,7 +23,7 @@ class BondrewdLexer(lexer.RegexLexer):
 
     tokens = {
         'root': [
-            (lexer.words([literal_eval(kw.value) for kw in keywords], prefix=r'\b', suffix=r'\b'), token.Keyword),
+            (lexer.words([kw.str_value for kw in keywords], prefix=r'\b', suffix=r'\b'), token.Keyword),
             (r'(?://|#).*?$', token.Comment.Singleline),
             (r'/\*', token.Comment.Multiline, 'comment'),
             (r'[a-zA-Z_][a-zA-Z_\d]*', token.Name),
@@ -35,7 +35,7 @@ class BondrewdLexer(lexer.RegexLexer):
             (r'"', token.String, 'string_d'),
             (r'\'\'\'', token.String, 'string_ms'),
             (r'\'', token.String, 'string_s'),
-            (lexer.words([literal_eval(p.value) for p in puncts]), token.Punctuation),
+            (lexer.words([p.str_value for p in puncts]), token.Punctuation),
             (r'\s', token.Text),
         ],
         'comment': [

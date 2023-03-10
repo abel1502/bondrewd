@@ -2,17 +2,22 @@ from __future__ import annotations
 import typing
 import pathlib
 import dataclasses
+from ast import literal_eval
 
 
 @dataclasses.dataclass
 class ListingItem:
     name: str
-    value: str
+    quoted_value: str
     
     @classmethod
     def from_line(cls, line: str) -> ListingItem:
-        name, value = line.strip().split(maxsplit=1)
-        return cls(name, value)
+        name, quoted_value = line.strip().split(maxsplit=1)
+        return cls(name, quoted_value)
+    
+    @property
+    def str_value(self) -> str:
+        return literal_eval(self.quoted_value)
 
 
 Listing = typing.List[ListingItem]
