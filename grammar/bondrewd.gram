@@ -150,6 +150,7 @@ atom_expr['ast::expr']:
     | &STRING a=strings  { std::move(a) }
     | group_expr
     | tuple_expr
+    | array_expr
     | block_expr
 
 # TODO: _concat_strings!
@@ -162,6 +163,10 @@ group_expr['ast::expr']:
 tuple_expr['ast::expr']:
     | '(' ')'  { ast::Tuple(make_sequence()) }
     | '(' a=','.expr+ ','? ')'  { ast::Tuple(std::move(a)) }
+
+array_expr['ast::expr']:
+    | '[' ']'  { ast::Array(make_sequence()) }
+    | '[' a=','.expr+ ','? ']'  { ast::Array(std::move(a)) }
 
 block_expr['ast::expr']:
     | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }

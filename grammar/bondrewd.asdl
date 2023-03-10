@@ -41,6 +41,7 @@ module Bondrewd {
          | Break(expr value)
          | Continue()
          | Tuple(expr* values)
+         | Array(expr* values)
 
     -- TODO: Currently, enum-like values are represented by empty variants (good),
     --       but they are stored by reference-counted arena_ptr's (bad). Maybe
