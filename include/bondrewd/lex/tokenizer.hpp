@@ -146,7 +146,7 @@ protected:
     /// Returns true if a token has been parsed, false if a comment has been consumed instead
     bool parse_other();
 
-    void parse_string(char start_quote);
+    void parse_string(std::string_view start_quote);
 
     void parse_line_comment();
 

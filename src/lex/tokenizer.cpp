@@ -230,7 +230,7 @@ bool Tokenizer::parse_other() {
     auto start_pos = scanner.tell();
 
     Punct punct{};
-    char quote{};
+    std::string_view quote{};
 
     auto verdict = MiscTrie().feed(scanner, &punct, &quote);
 
@@ -259,9 +259,10 @@ bool Tokenizer::parse_other() {
 }
 
 
-void Tokenizer::parse_string(char start_quote) {
+void Tokenizer::parse_string(std::string_view start_quote) {
     auto start_pos = scanner.tell();
     std::string value = "";
+    const bool is_multiline = start_quote.size() > 1;
 
     // Actually, this ended up less efficient than the implementation of this
     // I had in python (due to the fact that I'm using a separate switch-based trie here,
@@ -270,7 +271,7 @@ void Tokenizer::parse_string(char start_quote) {
     while (true) {
         auto seg_start_pos = scanner.tell();
 
-        char end_quote{};
+        std::string_view end_quote{};
         int escape{};
 
         auto verdict = StringTrie().feed(scanner, &end_quote, &escape);
@@ -295,7 +296,22 @@ void Tokenizer::parse_string(char start_quote) {
                 return;
             }
 
+            if (end_quote.starts_with(start_quote)) {
+                // This is a bit of a hack for cases like `"abc"""`
+                // We only want to consume the matching quote, not the extra ones
+                scanner.seek(seg_start_pos);
+                scanner.advance(end_quote.size());
+            }
+
             value += scanner.view_since(seg_start_pos);
+        } break;
+
+        case StringTrie::Verdict::newline: {
+            if (!is_multiline) {
+                error("Unterminated string", start_pos.loc);
+            }
+
+            value += '\n';
         } break;
 
         case StringTrie::Verdict::escape: {

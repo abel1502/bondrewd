@@ -101,10 +101,10 @@ public:
 {%- endmacro %}
 
 
-{% call(node) gen_trie("MiscTrie", tokens_info.misc_trie, extra_args="Punct *punct, char *quote") %}
+{% call(node) gen_trie("MiscTrie", tokens_info.misc_trie, extra_args="Punct *punct, std::string_view *quote") %}
     {%- if node.verdict == "string_quote" %}
     if (quote) {
-        *quote = '{{ node.word | cpp_escape }}';
+        *quote = "{{ node.word | cpp_escape }}";
     }
     {%- elif node.verdict == "punct" %}
     if (punct) {
@@ -114,10 +114,10 @@ public:
 {% endcall %}
 
 
-{% call(node) gen_trie("StringTrie", tokens_info.string_trie, extra_args="char *quote, int *escape") %}
+{% call(node) gen_trie("StringTrie", tokens_info.string_trie, extra_args="std::string_view *quote, int *escape") %}
     {%- if node.verdict == "end_quote" %}
         if (quote) {
-            *quote = '{{ node.word | cpp_escape }}';
+            *quote = "{{ node.word | cpp_escape }}";
         }
     {%- elif node.verdict == "escape" %}
         if (escape) {

@@ -36,7 +36,7 @@ public:
     TOKEN_FACTORY_(NameValue, name, MACRO_PASS(std::string_view value,), MACRO_PASS(std::move(value)))
     TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(int64_t value,), MACRO_PASS(value))
     TOKEN_FACTORY_(NumberValue, number, MACRO_PASS(double value,), MACRO_PASS(value))
-    TOKEN_FACTORY_(StringValue, string, MACRO_PASS(std::string_view value, char quote_char,), MACRO_PASS(std::move(value), quote_char))
+    TOKEN_FACTORY_(StringValue, string, MACRO_PASS(std::string_view value, std::string_view quotes,), MACRO_PASS(std::move(value), std::move(quotes)))
     TOKEN_FACTORY_(KeywordValue, keyword, MACRO_PASS(HardKeyword value,), MACRO_PASS(value))
     TOKEN_FACTORY_(PunctValue, punct, MACRO_PASS(Punct value,), MACRO_PASS(value))
 
@@ -83,7 +83,7 @@ protected:
 
     struct StringValue {
         std::string_view value;
-        char quote_char;
+        std::string_view quotes;
     };
 
     struct KeywordValue {

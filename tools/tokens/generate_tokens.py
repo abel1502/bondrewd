@@ -15,7 +15,7 @@ from trie_gen import Trie, TrieInfo
 
 LINE_COMMENTS: typing.Final[typing.Collection[str]] = ("//", "#")
 BLOCK_COMMENT: typing.Final[typing.Tuple[str, str]] = ("/*", "*/")
-STRING_QUOTES: typing.Final[typing.Collection[str]] = ("'", '"')
+STRING_QUOTES: typing.Final[typing.Collection[str]] = ("'", '"', "'''", '"""')
 
 
 parser = argparse.ArgumentParser("""\
@@ -73,6 +73,7 @@ class TokensInfo:
         misc_trie.add_wordlist(STRING_QUOTES, "string_quote")
         
         string_trie.add_word("\\", "escape")  # A bit of a hack, actually
+        string_trie.add_word("\n", "newline")
         string_trie.add_wordlist(STRING_QUOTES, "end_quote")
         
         block_comment_trie.add_word(BLOCK_COMMENT[0], "start")
