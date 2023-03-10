@@ -4,7 +4,6 @@ import typing
 import argparse
 import pathlib
 import dataclasses
-from ast import literal_eval
 from contextlib import contextmanager
 
 import sys
