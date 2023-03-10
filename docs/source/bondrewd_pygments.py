@@ -2,7 +2,6 @@ from __future__ import annotations
 import typing
 import pathlib
 # import re
-from ast import literal_eval
 
 import sys
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent.parent
