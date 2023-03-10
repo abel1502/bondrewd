@@ -6,6 +6,7 @@
 # TODO: Force parentheses around some operators (like bitwise)?
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Automatically add { std::move(a) } to all rules with a single non-terminal
+# TODO: Unquote result types
 
 @subheader '''\
 #include <algorithm>
@@ -32,25 +33,25 @@ stmt['ast::stmt']:
 assign_stmt['ast::stmt']:
     | a=expr o=assign_op b=expr ';'  { ast::Assign(std::move(a), std::move(b), std::move(op)) }
 
-assign_op['ast::assign_op']"
-    | '='  { ast::AsgnNone() }
-    | '+='  { ast::AsgnAdd() }
-    | '-='  { ast::AsgnSub() }
-    | '*='  { ast::AsgnMul() }
-    | '/='  { ast::AsgnDiv() }
-    | '%='  { ast::AsgnMod() }
+assign_op['ast::assign_op']:
+    | '='    { ast::AsgnNone() }
+    | '+='   { ast::AsgnAdd() }
+    | '-='   { ast::AsgnSub() }
+    | '*='   { ast::AsgnMul() }
+    | '/='   { ast::AsgnDiv() }
+    | '%='   { ast::AsgnMod() }
     | '<<='  { ast::AsgnLShift() }
     | '>>='  { ast::AsgnRShift() }
-    | '&='  { ast::AsgnBitAnd() }
-    | '|='  { ast::AsgnBitOr() }
-    | '^='  { ast::AsgnBitXor() }
+    | '&='   { ast::AsgnBitAnd() }
+    | '|='   { ast::AsgnBitOr() }
+    | '^='   { ast::AsgnBitXor() }
 
 var_def_stmt['ast::stmt']:
     | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), std::move(t), std::move(v), true, bool(c)) }
 
 # TODO: Decide on the body contents
 impl_stmt['ast::stmt']:
-    | c='ctime'? 'impl' c=name '{' d=()* '}' ';'
+    # | c='ctime'? 'impl' c=name '{' d=tmp_definition* '}' ';'
 # }  // stmt
 
 # expr {
@@ -61,13 +62,12 @@ expr_stmt['ast::stmt']:
 expr['ast::expr']:
     | func_def
     | class_def
-    | block
-    | if_expr
-    | for_expr
-    | while_expr
+    | block_expr
+    # | if_expr
+    # | for_expr
+    # | while_expr
     | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
     | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
-    | call
     | disjunction_expr
 
 expr_or_unit['ast::expr']:
@@ -90,7 +90,18 @@ comparison_expr['ast::expr']:  # TODO: Extract from sequence somehow (without a 
     | a=bidir_cmp_expr b=comparison_followup_pair+  { ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
     | bidir_cmp_expr
 
-# TODO: comparison_followup_pair['?']:
+comparison_followup_pair['std::pair<ast::cmp_op, ast::expr>']:
+    | o=comparison_op a=bidir_cmp_expr  { std::make_pair(std::move(o), std::move(a)) }
+
+comparison_op['ast::cmp_op']:
+    | '=='  { ast::Eq() }
+    | '!='  { ast::NotEq() }
+    | '<'   { ast::Lt() }
+    | '<='  { ast::LtE() }
+    | '>'   { ast::Gt() }
+    | '>='  { ast::GtE() }
+    | 'in'  { ast::In() }
+    | 'not' 'in'  { ast::NotIn() }
 
 # This one doesn't allow chaining, since it would've made no sense. Use parentheses if you really need it.
 bidir_cmp_expr['ast::expr']:
@@ -142,7 +153,9 @@ primary_expr['ast::expr']:
     | a=primary_expr '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
     | atom_expr
 
-# TODO: call_args['ast::call_args']
+# TODO: Actually implement
+call_args['ast::call_args']:
+    | { ast::call_args(make_sequence(), nullptr, nullptr) }
 
 atom_expr['ast::expr']:
     | a=name  { ast::Name(std::move(a)) }
@@ -179,6 +192,10 @@ type_annotation['ast::expr']:
 
 func_def['ast::expr']:
     | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), std::move(t), std::move(b)) }
+
+# TODO
+func_args_def['ast::arg_defs']:
+    | { ast::arg_defs(make_sequence()) }
 
 # TODO
 class_def['ast::expr']:

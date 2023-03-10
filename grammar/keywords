@@ -1,3 +1,7 @@
+AND                     "and"
+OR                      "or"
+NOT                     "not"
+IN                      "in"
 IF                      "if"
 THEN                    "then"
 ELSE                    "else"
