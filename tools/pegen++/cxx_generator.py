@@ -105,6 +105,16 @@ class CXXCallMakerVisitor(GrammarVisitor):
         
         value: str = literal_eval(raw_value)
         
+        if raw_value.endswith("\""):  # soft keyword
+            assert value not in self.tokens_to_names, f"Not a valid soft keyword: {raw_value}"
+            
+            return FunctionCall(
+                assigned_variable="_keyword",
+                function="lexer.expect().soft_keyword",
+                arguments=[raw_value],
+                comment=f"soft_keyword={raw_value!r}",
+            )
+        
         if not re.match(r"[a-zA-Z_]\w*\Z", value):  # punct
             assert value in self.tokens_to_names, f"Not a valid punct: {raw_value}"
             
@@ -115,24 +125,14 @@ class CXXCallMakerVisitor(GrammarVisitor):
                 comment=f"punct={value!r}",
             )
         
-        if raw_value.endswith("'"):  # hard keyword
-            assert value in self.tokens_to_names, f"Not a valid hard keyword: {raw_value}"
-            
-            return FunctionCall(
-                assigned_variable="_keyword",
-                function="lexer.expect().keyword",
-                arguments=[self.tokens_to_names[value]],
-                comment=f"keyword={value!r}",
-            )
-        
-        # soft keyword
-        assert value not in self.tokens_to_names, f"Not a valid soft keyword: {raw_value}"
+        # hard keyword
+        assert value in self.tokens_to_names, f"Not a valid hard keyword: {raw_value}"
         
         return FunctionCall(
             assigned_variable="_keyword",
-            function="lexer.expect().soft_keyword",
-            arguments=[raw_value],
-            comment=f"soft_keyword={raw_value!r}",
+            function="lexer.expect().keyword",
+            arguments=[self.tokens_to_names[value]],
+            comment=f"keyword={value!r}",
         )
     
     def complex_rule_helper(self, node: Repeat0 | Repeat1 | Gather) -> FunctionCall:
@@ -327,7 +327,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         debug: bool = False,
         skip_actions: bool = False,
     ):
-        ParserGenerator.__init__(self, grammar, TOKEN_TYPES, io.StringIO())
+        ParserGenerator.__init__(self, grammar, set(map(str.upper, TOKEN_TYPES)), io.StringIO())
         GrammarVisitor.__init__(self)
         
         self.callmakervisitor = CXXCallMakerVisitor(self, tokens_to_names)
@@ -439,11 +439,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self._set_up_rule_caching(node)
 
         with self.if_impl(with_braces=True):
-            with self.indent():
-                if is_loop:
-                    self._handle_loop_rule_body(node, rhs)
-                else:
-                    self._handle_default_rule_body(node, rhs)
+            if is_loop:
+                self._handle_loop_rule_body(node, rhs)
+            else:
+                self._handle_default_rule_body(node, rhs)
     
     def _set_up_rule_caching(self, node: Rule) -> None:
         with self.if_impl(with_braces=True):
@@ -661,6 +660,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.print(f"_cut_var = {call};")
             return
         
+        if not call.assigned_variable:
+            call.assigned_variable = "_tmpvar"
+        
         if call.assigned_variable:
             call.assigned_variable = self.dedupe(call.assigned_variable)
         
@@ -685,3 +687,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             name = self.dedupe(name)
         return_type: str | None = node.type  # or call.return_type
         return name, return_type
+
+
+__all__ = [
+    "CXXParserGenerator",
+]

@@ -168,7 +168,9 @@ protected:
     #pragma endregion Caching
 
     #pragma region Rule parsers
+    {%- filter indent(4) %}
     {{ generator.gen_rule_parsers() }}
+    {%- endfilter %}
     #pragma endregion Rule parsers
 
 };
