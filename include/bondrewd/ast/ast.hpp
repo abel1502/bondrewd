@@ -130,6 +130,15 @@ template <typename T>
 maybe<T> make_maybe() {
     return nullptr;
 }
+
+template <typename T>
+maybe<T> make_maybe(std::optional<T> value) {
+    if (value.has_value()) {
+        return make_field<T>(std::move(value.value()));
+    } else {
+        return nullptr;
+    }
+}
 #pragma endregion maybe
 #pragma endregion Convenience aliases
 

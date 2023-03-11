@@ -129,3 +129,14 @@ public:
 
 
 }  // namespace bondrewd::ast::nodes
+
+
+namespace bondrewd::ast {
+
+
+// Import all nodes into the bondrewd::ast namespace,
+// so that they can be used without the nodes:: prefix.
+using namespace nodes;
+
+
+}  // namespace bondrewd::ast
