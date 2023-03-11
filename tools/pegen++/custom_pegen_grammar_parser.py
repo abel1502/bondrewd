@@ -624,7 +624,7 @@ class CustomGrammarParser(Parser):
 
     @memoize
     def target_atom(self) -> Optional[str]:
-        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | cpp_type_name | NUMBER | STRING | "?" | ":" | !"}" !"]" OP
+        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | cpp_name | NAME | NUMBER | STRING | "?" | ":" | !"}" !"]" OP
         mark = self._mark()
         cut = False
         if (
@@ -655,9 +655,14 @@ class CustomGrammarParser(Parser):
         if cut:
             return None;
         if (
-            (cpp_type_name := self.cpp_type_name())
+            (cpp_name := self.cpp_name())
         ):
-            return cpp_type_name;
+            return cpp_name;
+        self._reset(mark)
+        if (
+            (name := self.name())
+        ):
+            return name . string;
         self._reset(mark)
         if (
             (number := self.number())
@@ -691,15 +696,15 @@ class CustomGrammarParser(Parser):
         return None;
 
     @memoize_left_rec
-    def cpp_type_name(self) -> Optional[str]:
-        # cpp_type_name: namespaced_name '<' cpp_type_name '>' | namespaced_name | cpp_type_name '*'
+    def cpp_name(self) -> Optional[str]:
+        # cpp_name: namespaced_name '<' cpp_name '>' | namespaced_name | cpp_name '*'
         mark = self._mark()
         if (
             (self.namespaced_name())
             and
             (self.expect('<'))
             and
-            (self.cpp_type_name())
+            (self.cpp_name())
             and
             (self.expect('>'))
         ):
@@ -711,7 +716,7 @@ class CustomGrammarParser(Parser):
             return namespaced_name;
         self._reset(mark)
         if (
-            (self.cpp_type_name())
+            (self.cpp_name())
             and
             (self.expect('*'))
         ):
@@ -721,12 +726,12 @@ class CustomGrammarParser(Parser):
 
     @memoize
     def namespaced_name(self) -> Optional[str]:
-        # namespaced_name: NAME "::" namespaced_name | NAME
+        # namespaced_name: NAME ("::" | ":" ":") namespaced_name | NAME
         mark = self._mark()
         if (
             (first := self.name())
             and
-            (self.expect("::"))
+            (self._tmp_1())
             and
             (rest := self.namespaced_name())
         ):
@@ -736,6 +741,24 @@ class CustomGrammarParser(Parser):
             (name := self.name())
         ):
             return name . string;
+        self._reset(mark)
+        return None;
+
+    @memoize
+    def _tmp_1(self) -> Optional[Any]:
+        # _tmp_1: "::" | ":" ":"
+        mark = self._mark()
+        if (
+            (literal := self.expect("::"))
+        ):
+            return literal;
+        self._reset(mark)
+        if (
+            (literal := self.expect(":"))
+            and
+            (literal_1 := self.expect(":"))
+        ):
+            return [literal, literal_1];
         self._reset(mark)
         return None;
 

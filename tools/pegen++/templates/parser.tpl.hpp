@@ -3,6 +3,7 @@
 
 #include <bondrewd/internal/common.hpp>
 #include <bondrewd/parse/parser_base.hpp>
+#include <bondrewd/ast/ast_nodes.gen.hpp>
 
 #include <map>
 #include <optional>

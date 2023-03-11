@@ -12,11 +12,11 @@ import pathlib
 import re
 from dataclasses import dataclass, field
 from ast import literal_eval
-import enum
 from contextlib import contextmanager
 from textwrap import dedent
 import functools
 import io
+from ast import literal_eval
 
 from pegen import grammar
 from pegen.grammar import (
@@ -38,6 +38,8 @@ from pegen.grammar import (
     Rhs,
     Rule,
     StringLeaf,
+    Grammar,
+    GrammarError,
 )
 from pegen.parser_generator import ParserGenerator
 
@@ -290,11 +292,239 @@ class CXXCallMakerVisitor(GrammarVisitor):
         return self.visit(node)
 
 
+@dataclass(frozen=True)
+class _DeducedType:
+    type: str | None
+    ignore: bool = False
+    
+    @staticmethod
+    def make_ignored() -> _DeducedType:
+        return _DeducedType(None, True)
+    
+    @property
+    def is_ignored(self) -> bool:
+        return self.ignore
+    
+    @property
+    def is_known(self) -> bool:
+        return self.type is not None
+    
+    @property
+    def is_unknown(self) -> bool:
+        return self.type is None
+    
+    def register_for(self, obj: Rule | NamedItem) -> _DeducedType:
+        obj.type = self.type
+        return self
+
+
 class CXXTypeDeductionVisitor(GrammarVisitor):
     # TODO: Also unwrap quoted types!
     # TODO: Also deduce types for alts with a single nonterminal and no actions
     
-    pass  # TODO: Implement
+    gen: CXXParserGenerator
+    rules_stack: typing.List[Rule]
+    visited_rules: typing.Set[Rule]
+    
+    def __init__(
+        self,
+        parser_generator: CXXParserGenerator,
+    ):
+        self.gen = parser_generator
+        self.rules_stack = []
+        self.visited_rules = set()
+    
+    @contextmanager
+    def push_rule(self, rule: Rule) -> typing.Generator[None, None, None]:
+        self.rules_stack.append(rule)
+        yield
+        self.rules_stack.pop()
+    
+    def is_active_rule(self, rule: Rule) -> bool:
+        return rule in self.rules_stack
+    
+    @staticmethod
+    def unquote(s: str) -> str:
+        if s.startswith(("'", '"')):
+            s = literal_eval(s)
+        # if s.startswith("ast::") and not s.startswith(("ast::field", "ast::maybe", "ast::sequence")):
+        #     s = f"ast::field<{s}>"
+        return s
+    
+    def deduce_rule_type(self, rule: Rule | str) -> _DeducedType:
+        if isinstance(rule, str):
+            rule = self.gen.todo[rule]
+        rule: Rule
+        
+        
+        if self.is_active_rule(rule) and not (
+            rule in self.visited_rules or rule.type is not None
+        ):
+            # return _DeducedType(None).register_for(rule)
+            raise GrammarError(f"Cannot deduce type for recursive rule: {rule!r}")
+        
+        if rule in self.visited_rules:
+            assert rule.type is not None
+            result = _DeducedType(self.unquote(rule.type))
+        else:
+            result: _DeducedType = self.visit(rule)
+            self.visited_rules.add(rule)
+        
+        if result.is_unknown:
+            raise GrammarError(f"Could not deduce type for rule {rule!r}")
+        
+        return result.register_for(rule)
+    
+    def deduce_complex_node_type(self, node: Repeat0 | Repeat1 | Gather) -> _DeducedType:
+        # A bit of a hack...
+        rulename: str = self.gen.callmakervisitor.complex_rule_helper(node)\
+            .assigned_variable.removesuffix("_var")
+        
+        return self.deduce_rule_type(rulename)
+    
+    def seq_or_vec_of(self, item_type: _DeducedType) -> _DeducedType:
+        if item_type.is_unknown:
+            return item_type
+        
+        # Kinda hacky...
+        result_type: str = f"std::vector<{item_type.type}>"
+        
+        is_field: re.Match[str] | None = re.fullmatch(r"ast::field<(.*)>", item_type.type)
+        if is_field:
+            result_type = f"ast::sequence<{is_field.group(1)}>"
+        
+        return _DeducedType(result_type, item_type.is_ignored)
+    
+    def deduce_loop_rule_type(self, node: Rule) -> _DeducedType:
+        item_type: _DeducedType = self.visit(node.rhs.alts[0].items[0])
+        
+        return self.seq_or_vec_of(item_type)
+    
+    def deduce_gather_rule_type(self, node: Rule) -> _DeducedType:
+        elem, seq = node.rhs.alts[0].items
+        
+        # The type is the same as the type of the generated loop rule
+        return self.deduce_rule_type(seq.item.value)
+    
+    def apply(self) -> None:
+        for rule in self.gen.todo.values():
+            self.deduce_rule_type(rule)
+    
+    def visit_Rule(self, node: Rule) -> _DeducedType:
+        with self.push_rule(node):
+            if node.is_loop():
+                return self.deduce_loop_rule_type(node)
+            
+            if node.is_gather():
+                return self.deduce_gather_rule_type(node)
+            
+            # Explicitly annotated only. If the type is deduced,
+            # visit won't be called for the rule anymore.
+            if node.type is not None:
+                # if node not in self.rules_stack[:-1]:
+                #     self.visit(node.rhs)
+                return _DeducedType(self.unquote(node.type))
+            return self.visit(node.rhs)
+    
+    def visit_Rhs(self, node: Rhs) -> _DeducedType:
+        types: set[_DeducedType] = set()
+        
+        for alt in node.alts:
+            result: _DeducedType = self.visit(alt)
+            
+            if result.is_known:
+                types.add(result)
+        
+        if len(types) != 1:
+            return _DeducedType(None)
+        
+        # if len(types) > 1:
+        #     raise GrammarError(f"Ambiguous rule type: {node!r} can be one of {types}")
+        
+        # if len(types) == 0:
+        #     raise GrammarError(f"Could not deduce type for rule: {node!r} (no candidates)")
+        
+        return next(iter(types))
+    
+    def visit_Alt(self, node: Alt) -> _DeducedType:
+        results: list[_DeducedType] = []
+        items_lookup: dict[str, _DeducedType] = {}
+        
+        for item in node.items:
+            result: _DeducedType = self.visit(item)
+            result.register_for(item)
+            
+            if item.name:
+                items_lookup[item.name] = result
+            
+            if not result.is_ignored:
+                results.append(result)
+        
+        if len(results) == 1:
+            return results[0]
+        
+        def check_simple_action(action: str) -> _DeducedType | None:
+            if action in items_lookup:
+                # print(f">> alt {node!r} {items_lookup[action]!r}")
+                return items_lookup[action]
+            return None
+
+        return (check_simple_action(node.action) or
+                check_simple_action(f"std::move ( {node.action} )") or
+                _DeducedType(None))
+        
+        # raise GrammarError(f"Ambiguous rule type: {node!r} can be one of {results}")
+    
+    def visit_NamedItem(self, node: NamedItem) -> _DeducedType:
+        if node.type is not None:
+            # self.visit(node.item)
+            return _DeducedType(self.unquote(node.type))
+        
+        # TODO: Use call type?
+        # call: FunctionCall = self.gen.callmakervisitor.visit(node.item)
+        
+        return self.visit(node.item)
+    
+    def visit_NameLeaf(self, node: NameLeaf) -> _DeducedType:
+        if node.value in self.gen.tokens:
+            return _DeducedType("lex::Token")
+        
+        return self.deduce_rule_type(node.value)
+
+    def visit_StringLeaf(self, node: StringLeaf) -> _DeducedType:
+        return _DeducedType("lex::Token")
+    
+    def visit_Group(self, node: Group) -> _DeducedType:
+        return self.visit(node.rhs)
+    
+    def visit_Opt(self, node: Opt) -> _DeducedType:
+        result: _DeducedType = self.visit(node.node)
+
+        if result.is_unknown:
+            return result
+        
+        return _DeducedType(f"std::optional<{result.type}>", result.is_ignored)
+    
+    def visit_Repeat0(self, node: Repeat0) -> _DeducedType:
+        return self.deduce_complex_node_type(node)
+    
+    def visit_Repeat1(self, node: Repeat1) -> _DeducedType:
+        return self.deduce_complex_node_type(node)
+    
+    def visit_Gather(self, node: Gather) -> _DeducedType:
+        return self.deduce_complex_node_type(node)
+    
+    def visit_Forced(self, node: Forced) -> _DeducedType:
+        return self.visit(node.node)
+    
+    def visit_PositiveLookahead(self, node: PositiveLookahead) -> _DeducedType:
+        return _DeducedType.make_ignored()
+    
+    def visit_NegativeLookahead(self, node: NegativeLookahead) -> _DeducedType:
+        return _DeducedType.make_ignored()
+    
+    def visit_Cut(self, node: Cut) -> _DeducedType:
+        return _DeducedType.make_ignored()
 
 
 P = typing.ParamSpec("P")
@@ -367,18 +597,20 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.print("}")
         else:
             yield
+        self.print("#else")
+        self.print(";")
         self.print("#endif")
 
     def generate(self, filename: str) -> None:
         raise NotImplementedError("Use prepare() and a jinja template instead")
     
     def prepare(self) -> CXXParserGenerator:
-        self.collect_todo()
-        
         if "header" in self.grammar.metas:
             raise NotImplementedError("Overrding header not supported anymore")
         
-        # TODO: Compute all rule types!
+        self.collect_todo()
+        
+        CXXTypeDeductionVisitor(self).apply()
         
         # TODO: Mark all loops for caching?
         
@@ -446,7 +678,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     
     def _set_up_rule_caching(self, node: Rule) -> None:
         with self.if_impl(with_braces=True):
-            assert node.type is not None, "All rules must have specific types!"
+            assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
             result_type: str = node.type
             
             self.add_level()
@@ -481,7 +713,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     def _handle_default_rule_body(self, node: Rule, rhs: Rhs) -> None:
         should_cache: bool = self.should_cache(node)
         
-        assert node.type is not None, "All rules must have specific types!"
+        assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
         result_type: str = node.type
 
         self.add_level()
@@ -514,7 +746,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         is_repeat1: bool = node.name.startswith("_loop1")
         
         # TODO: Maybe loop results are different?
-        assert node.type is not None, "All rules must have specific types!"
+        assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
         result_type: str = node.type
         
         assert node.name, "Unexpected unnamed loop rule!"

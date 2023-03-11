@@ -148,18 +148,19 @@ target_atoms[str]:
 target_atom[str]:
     | "{" ~ atoms=target_atoms? "}" { "{" + (atoms or "") + "}" }
     | "[" ~ atoms=target_atoms? "]" { "[" + (atoms or "") + "]" }
-    | cpp_type_name
+    | cpp_name
+    | NAME { name.string }
     | NUMBER { number.string }
     | STRING { string.string }
     | "?" { "?" }
     | ":" { ":" }
     | !"}" !"]" OP { op.string }
 
-cpp_type_name[str]:
-    | namespaced_name '<' cpp_type_name '>' { first + "<" + rest + ">" }
+cpp_name[str]:
+    | namespaced_name '<' cpp_name '>' { first + "<" + rest + ">" }
     | namespaced_name
-    | cpp_type_name '*' { first + "*" }
+    | cpp_name '*' { first + "*" }
 
 namespaced_name[str]:
-    | first=NAME "::" rest=namespaced_name { first.string + "::" + rest }
+    | first=NAME ("::" | ":" ":") rest=namespaced_name { first.string + "::" + rest }
     | NAME { name.string }
