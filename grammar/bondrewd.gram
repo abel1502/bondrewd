@@ -7,6 +7,7 @@
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Automatically add { std::move(a) } to all rules with a single non-terminal
 # TODO: Explicitly specify ast::nodes::?
+# TODO: Save optionals into variables with an underscore prefix, and unpack their true values into the named vars
 
 @subheader '''\
 #include <string>

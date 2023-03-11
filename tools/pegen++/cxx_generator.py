@@ -78,8 +78,8 @@ class FunctionCall:
         parts: typing.List[str] = []
         parts.append(self.function)
         parts.append(f"({', '.join(map(str, self.arguments))})")
-        if self.assigned_variable:
-            parts = [self.assigned_variable, " = "] + parts
+        # if self.assigned_variable:
+        #     parts = [self.assigned_variable, " = "] + parts
         return "".join(parts)
 
 
@@ -123,7 +123,7 @@ class CXXCallMakerVisitor(GrammarVisitor):
             return FunctionCall(
                 assigned_variable="_literal",
                 function=f"lexer.expect().punct",
-                arguments=[self.tokens_to_names[value]],
+                arguments=[f"lex::Punct::{self.tokens_to_names[value]}"],
                 comment=f"punct={value!r}",
             )
         
@@ -133,7 +133,7 @@ class CXXCallMakerVisitor(GrammarVisitor):
         return FunctionCall(
             assigned_variable="_keyword",
             function="lexer.expect().keyword",
-            arguments=[self.tokens_to_names[value]],
+            arguments=[f"lex::HardKeyword::{self.tokens_to_names[value]}"],
             comment=f"keyword={value!r}",
         )
     
@@ -358,7 +358,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
     
     def deduce_rule_type(self, rule: Rule | str) -> _DeducedType:
         if isinstance(rule, str):
-            rule = self.gen.todo[rule]
+            rule = self.gen.all_rules[rule]
         rule: Rule
         
         
@@ -412,7 +412,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
         return self.deduce_rule_type(seq.item.value)
     
     def apply(self) -> None:
-        for rule in self.gen.todo.values():
+        for rule in self.gen.all_rules.values():
             self.deduce_rule_type(rule)
     
     def visit_Rule(self, node: Rule) -> _DeducedType:
@@ -623,6 +623,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
 
     @functools.cached_property
     def all_rules_sorted(self) -> typing.List[typing.Tuple[str, Rule]]:
+        # self.all_rules has failed me
         return list(sorted(self.all_rules.items(), key=lambda x: x[0]))
 
     @jinja_tpl_generator
@@ -645,7 +646,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         self.print("auto parse() {")
         with self.indent():
-            self.print("return parse_start();")
+            self.print("return parse_start_rule();")
         self.print("}")
     
     @jinja_tpl_generator
@@ -668,9 +669,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.print(f"// {line}")
         
         if node.left_recursive and node.leader:
-            self.print(f"std::optional<{node.type}> parse_raw_{node.name}();")
+            # self.print(f"std::optional<{node.type}> parse_raw_{node.name}_rule();")
+            pass
 
-        self.print(f"std::optional<{node.type}> parse_{node.name}()")
+        self.print(f"std::optional<{node.type}> parse_{node.name}_rule()")
         
         if node.left_recursive and node.leader:
             self._set_up_rule_caching(node)

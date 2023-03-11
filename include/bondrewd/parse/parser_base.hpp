@@ -11,9 +11,13 @@ namespace bondrewd::parse {
 
 
 template <typename T>
-requires std::derived_from<T, ParserBase<T>>
 class ParserBase {
 public:
+    // #pragma region Static check
+    // // Because a requires clause doesn't work, apparently...
+    // static_assert(std::derived_from<T, ParserBase<T>>);
+    // #pragma endregion Static check
+
     #pragma region Constructors
     ParserBase(lex::Lexer lexer) :
         lexer{std::move(lexer)} {}

@@ -23,7 +23,7 @@ namespace bondrewd::parse {
 class Parser : public ParserBase<Parser> {
 public:
     #pragma region Constructors
-    Parser(lex::Lexer lexer) : ParserBase(std::move(lexer)) {}
+    Parser(lex::Lexer lexer_) : ParserBase(std::move(lexer_)) {}
     #pragma endregion Constructors
 
     #pragma region Service constructors
@@ -73,7 +73,7 @@ protected:
         (unsigned)R,
         std::tuple<
             {%- for rulename, rule in generator.all_rules_sorted %}
-            {{ rule.type }},
+            {{ rule.type }}{{ "," if not loop.last else "" }}
             {%- endfor %}
         >
     >;
@@ -81,7 +81,7 @@ protected:
 
     #pragma region Helpers
     bool lookahead(bool positive, auto rule_func) {
-        auto guard = lexer.lookahead();
+        auto guard = lexer.lookahead(positive);
 
         // TODO: Pass this?
         return positive == (bool)rule_func();
@@ -146,7 +146,9 @@ protected:
         if constexpr (rule_type == RuleType::{{ rulename }}) {
             return cache_{{ rulename }};
         } else {% endfor %} {
-            static_assert(false, "Uncachable rule type");
+            // Hack to bypass msvc's static_assert in templates optimization
+            // (it was triggered despite being within a non-instantiated template function...)
+            static_assert(rule_type == rule_type && false, "Uncachable rule type");
         }
     }
 

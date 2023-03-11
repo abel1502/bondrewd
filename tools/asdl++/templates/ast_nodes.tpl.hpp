@@ -29,7 +29,8 @@ public:
     {%- endif %}
     #pragma endregion Constructors
     {% filter indent(width=4) %}
-    {{- gen_service_ctors(name, copy=helpers.copyable(asdl_type)) }}
+    {#- helpers.copyable(asdl_type) -#}
+    {{- gen_service_ctors(name, copy=False) }}
     {%- endfilter %}
 
     #pragma region Uniform fields access
@@ -55,6 +56,10 @@ public:
 };
 {%- elif asdl_type is instanceof asdl.Sum %}
 {#- Sum = abstract class #}
+{%- for alt in asdl_type.types %}
+{{- gen_class(alt.name, alt) }}
+
+{% endfor %}
 class {{ name }} : public _AST<{{ helpers.names_of_alts(asdl_type) | join(", ") }}> {
 public:
     #pragma region Constructors
@@ -63,7 +68,8 @@ public:
     {%- endfilter %}
     #pragma endregion Constructors
     {% filter indent(width=4) %}
-    {{- gen_service_ctors(name, copy=helpers.copyable(asdl_type)) }}
+    {#- helpers.copyable(asdl_type) -#}
+    {{- gen_service_ctors(name, copy=False) }}
     {%- endfilter %}
 
     #pragma region Destructor
@@ -82,11 +88,6 @@ public:
     {%- endfilter %}
     #pragma endregion Extras
 };
-
-{%- for alt in asdl_type.types %}
-
-{{ gen_class(alt.name, alt) }}
-{%- endfor %}
 {%- endif %}
 {%- endmacro %}
 
@@ -96,8 +97,8 @@ public:
 {%- set value_arg = "" %}
 {%- set value_set = "" %}
 {%- else %}
-{%- set value_arg = "auto &&value" %}
-{%- set value_set = "std::forward<decltype(value)>(value)" %}
+{%- set value_arg = "auto &&value_" %}
+{%- set value_set = "std::forward<decltype(value_)>(value_)" %}
 {%- endif %}
 {%- set has_args = (fields | length) > 0 %}
 {{ name }}({{ value_arg }}{% for arg in helpers.field_decls(fields) %}, {{ arg }}{% endfor %})
@@ -122,10 +123,24 @@ public:
 {%- endmacro %}
 
 
+#pragma region Forward declarations
 {%- for asdl_type in asdl_module.dfns %}
-
-{{ gen_class(asdl_type.name, asdl_type.value) }}
+class {{ asdl_type.name }};
+{%- if asdl_type.value is instanceof asdl.Sum %}
+{%- for alt in asdl_type.value.types %}
+class {{ alt.name }};
 {%- endfor %}
+{%- endif %}
+{%- endfor %}
+#pragma endregion Forward declarations
+
+
+#pragma region Implementations
+{%- for asdl_type in asdl_module.dfns %}
+{{- gen_class(asdl_type.name, asdl_type.value) }}
+{{- "\n\n" if not loop.last else "" }}
+{%- endfor %}
+#pragma endregion Implementations
 
 
 }  // namespace bondrewd::ast::nodes

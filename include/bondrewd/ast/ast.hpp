@@ -49,7 +49,7 @@ public:
         return std::get<T>(value);
     }
     #pragma endregion Casting
-    
+
     #pragma region Service constructors
     _AST(const _AST &) = delete;
     _AST(_AST &&) = default;

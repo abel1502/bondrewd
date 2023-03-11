@@ -80,6 +80,8 @@ class _helpers:
                 return f"std::optional<{raw_type}>"
             return f"maybe<{raw_type}>"
         
+        if field.type in builtin_types:
+            return raw_type
         return f"field<{raw_type}>"
     
     @staticmethod

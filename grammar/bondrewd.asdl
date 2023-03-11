@@ -4,7 +4,7 @@
 
 module Bondrewd {
     -- TODO: Very much incomplete
-    cartridge = Cartridge(stmt* body)
+    cartridge = Cartridge(string name, stmt* body)
 
     -- TODO: More data for classdef and impldef
     stmt = VarDef(identifier name, expr? type, expr? value, bool mut, bool ctime)
