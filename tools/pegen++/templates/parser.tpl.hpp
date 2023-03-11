@@ -6,7 +6,9 @@
 #include <bondrewd/ast/ast_nodes.gen.hpp>
 
 #include <map>
+#include <vector>
 #include <optional>
+#include <algorithm>
 
 
 #pragma region Subheader

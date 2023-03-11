@@ -6,12 +6,14 @@
 # TODO: Force parentheses around some operators (like bitwise)?
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Automatically add { std::move(a) } to all rules with a single non-terminal
-# TODO: Annotate `ast::field<>` and `ast::maybe<>` explicitly, or deduce them!
+# TODO: Explicitly specify ast::nodes::?
 
 @subheader '''\
-#include <algorithm>
 #include <string>
 '''
+
+# This means all ast::* types are automatically wrapped into ast::field<>
+@wrap_ast_types
 
 start[ast::cartridge]:  cartridge
 

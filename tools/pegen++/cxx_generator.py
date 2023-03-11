@@ -323,6 +323,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
     # TODO: Also deduce types for alts with a single nonterminal and no actions
     
     gen: CXXParserGenerator
+    wrap_ast_types: bool
     rules_stack: typing.List[Rule]
     visited_rules: typing.Set[Rule]
     
@@ -331,6 +332,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
         parser_generator: CXXParserGenerator,
     ):
         self.gen = parser_generator
+        self.wrap_ast_types = "wrap_ast_types" in self.gen.grammar.metas
         self.rules_stack = []
         self.visited_rules = set()
     
@@ -343,12 +345,15 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
     def is_active_rule(self, rule: Rule) -> bool:
         return rule in self.rules_stack
     
-    @staticmethod
-    def unquote(s: str) -> str:
+    def unquote(self, s: str) -> str:
         if s.startswith(("'", '"')):
             s = literal_eval(s)
-        # if s.startswith("ast::") and not s.startswith(("ast::field", "ast::maybe", "ast::sequence")):
-        #     s = f"ast::field<{s}>"
+        if self.wrap_ast_types and (
+            s.startswith("ast::") and
+            not s.startswith(("ast::field", "ast::maybe", "ast::sequence"))
+        ):
+            s = f"ast::field<{s}>"
+        # print(f"!!! {s!r}")
         return s
     
     def deduce_rule_type(self, rule: Rule | str) -> _DeducedType:
