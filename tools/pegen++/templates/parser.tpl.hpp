@@ -107,6 +107,7 @@ protected:
     #pragma endregion Helpers
 
     #pragma region CacheHelper
+    #if 0
     template <RuleType rule_type>
     class CacheHelper {
     public:
@@ -137,6 +138,7 @@ protected:
         bool is_success = false;
     
     };
+    #endif
     #pragma endregion CacheHelper
 
     #pragma region Caching
@@ -148,7 +150,7 @@ protected:
         } else {% endfor %} {
             // Hack to bypass msvc's static_assert in templates optimization
             // (it was triggered despite being within a non-instantiated template function...)
-            static_assert(rule_type == rule_type && false, "Uncachable rule type");
+            static_assert(false && rule_type == rule_type, "Uncachable rule type");
         }
     }
 
@@ -165,7 +167,7 @@ protected:
         return it->second;
     }
 
-    // Updates, if present
+    /// Updates, if present
     template <RuleType rule_type>
     void store_cached(state_t state, std::optional<rule_result_t<rule_type>> result) {
         auto &cache = _get_cache<rule_type>();

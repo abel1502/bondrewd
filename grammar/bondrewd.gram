@@ -16,11 +16,14 @@
 # This means all ast::* types are automatically wrapped into ast::field<>
 @wrap_ast_types
 
+# This means that actions prefixed with _field_, _sequence_ and _maybe_ are wrapped in their corresponding ast::make_*<>() functions
+@wrap_make_field
+
 start[ast::cartridge]:  cartridge
 
 #region cartridge
 cartridge[ast::cartridge]:
-    | h=cartridge_header b=stmt*  { ast::Cartridge(std::move(h), std::move(b)) }
+    | h=cartridge_header b=stmt*  { _field_ ast::Cartridge(std::move(h), std::move(b)) }
 
 cartridge_header[std::string]:
     | 'cartridge' n=name ';'  { std::move(n) }
@@ -32,26 +35,26 @@ stmt[ast::stmt]:
     | impl_stmt
     | assign_stmt
     | expr_stmt
-    | ';'  { ast::Pass() }
+    | ';'  { _field_ ast::Pass() }
 
 assign_stmt[ast::stmt]:
-    | a=expr o=assign_op b=expr ';'  { ast::Assign(std::move(a), std::move(b), std::move(op)) }
+    | a=expr op=assign_op b=expr ';'  { _field_ ast::Assign(std::move(a), std::move(b), std::move(op)) }
 
 assign_op[ast::assign_op]:
-    | '='    { ast::AsgnNone() }
-    | '+='   { ast::AsgnAdd() }
-    | '-='   { ast::AsgnSub() }
-    | '*='   { ast::AsgnMul() }
-    | '/='   { ast::AsgnDiv() }
-    | '%='   { ast::AsgnMod() }
-    | '<<='  { ast::AsgnLShift() }
-    | '>>='  { ast::AsgnRShift() }
-    | '&='   { ast::AsgnBitAnd() }
-    | '|='   { ast::AsgnBitOr() }
-    | '^='   { ast::AsgnBitXor() }
+    | '='    { _field_ ast::AsgnNone() }
+    | '+='   { _field_ ast::AsgnAdd() }
+    | '-='   { _field_ ast::AsgnSub() }
+    | '*='   { _field_ ast::AsgnMul() }
+    | '/='   { _field_ ast::AsgnDiv() }
+    | '%='   { _field_ ast::AsgnMod() }
+    | '<<='  { _field_ ast::AsgnLShift() }
+    | '>>='  { _field_ ast::AsgnRShift() }
+    | '&='   { _field_ ast::AsgnBitAnd() }
+    | '|='   { _field_ ast::AsgnBitOr() }
+    | '^='   { _field_ ast::AsgnBitXor() }
 
 var_def_stmt[ast::stmt]:
-    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), std::move(t), std::move(v), true, bool(c)) }
+    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { _field_ ast::VarDef(std::move(n), std::move(t), std::move(v), true, bool(c)) }
 
 # TODO: Decide on the body contents
 impl_stmt[ast::stmt]:
@@ -60,7 +63,7 @@ impl_stmt[ast::stmt]:
 
 #region expr
 expr_stmt[ast::stmt]:
-    | a=expr ';'  { ast::Expr(std::move(a)) }
+    | a=expr ';'  { _field_ ast::Expr(std::move(a)) }
 
 # TODO: Support constants!
 expr[ast::expr]:
@@ -70,111 +73,111 @@ expr[ast::expr]:
     # | if_expr
     # | for_expr
     # | while_expr
-    | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
-    | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
+    | 'return' a=expr_or_unit  { _field_ ast::Return(std::move(a)) }
+    | 'break' a=expr_or_unit  { _field_ ast::Break(std::move(a)) }
     | disjunction_expr
 
 expr_or_unit[ast::expr]:
     | expr
-    | { ast::Constant(std::monostate()) }  # TODO: Implement Unit!
+    | { _field_ ast::Constant(std::monostate()) }  # TODO: Implement Unit!
 
 #region operators
 #region logical
 disjunction_expr[ast::expr]:
-    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or(), ...) }
+    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { _field_ ast::BoolOp(ast::Or(), ...) }
     | conjunction_expr
 
 conjunction_expr[ast::expr]:
-    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And(), ...) }
+    | a=inversion_expr b=('and' c=inversion_expr { c })+  { _field_ ast::BoolOp(ast::And(), ...) }
     | inversion_expr
 
 inversion_expr[ast::expr]:
-    | 'not' a=inversion_expr  { ast::UnaryOp(ast::Not(), std::move(a)) }
+    | 'not' a=inversion_expr  { _field_ ast::UnaryOp(ast::Not(), std::move(a)) }
     | comparison_expr
 #endregion logical
 
 #region comparison
 comparison_expr[ast::expr]:  # TODO: Extract from sequence somehow (without a 1000-char rule, preferably)
-    | a=bidir_cmp_expr b=comparison_followup_pair+  { ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
+    | a=bidir_cmp_expr b=comparison_followup_pair+  { _field_ ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
     | bidir_cmp_expr
 
 comparison_followup_pair[std::pair<ast::cmp_op, ast::expr>]:
     | o=comparison_op a=bidir_cmp_expr  { std::make_pair(std::move(o), std::move(a)) }
 
 comparison_op[ast::cmp_op]:
-    | '=='  { ast::Eq() }
-    | '!='  { ast::NotEq() }
-    | '<'   { ast::Lt() }
-    | '<='  { ast::LtE() }
-    | '>'   { ast::Gt() }
-    | '>='  { ast::GtE() }
-    | 'in'  { ast::In() }
-    | 'not' 'in'  { ast::NotIn() }
+    | '=='  { _field_ ast::Eq() }
+    | '!='  { _field_ ast::NotEq() }
+    | '<'   { _field_ ast::Lt() }
+    | '<='  { _field_ ast::LtE() }
+    | '>'   { _field_ ast::Gt() }
+    | '>='  { _field_ ast::GtE() }
+    | 'in'  { _field_ ast::In() }
+    | 'not' 'in'  { _field_ ast::NotIn() }
 
 # This one doesn't allow chaining, since it would've made no sense. Use parentheses if you really need it.
 bidir_cmp_expr[ast::expr]:
-    | a=bitor_expr '<=>' b=bitor_expr  { ast::Compare(std::move(a), std::move(b)) }
+    | a=bitor_expr '<=>' b=bitor_expr  { _field_ ast::Compare(std::move(a), std::move(b)) }
     | bitor_expr
 #endregion comparison
 
 #region bitwise
 bitor_expr[ast::expr]:
-    | a=bitor_expr '|' b=bitxor_expr  { ast::BinOp(ast::BitOr(), std::move(a), std::move(b)) }
+    | a=bitor_expr '|' b=bitxor_expr  { _field_ ast::BinOp(ast::BitOr(), std::move(a), std::move(b)) }
     | bitxor_expr
 
 bitxor_expr[ast::expr]:
-    | a=bitxor_expr '^' b=bitand_expr  { ast::BinOp(ast::BitXor(), std::move(a), std::move(b)) }
+    | a=bitxor_expr '^' b=bitand_expr  { _field_ ast::BinOp(ast::BitXor(), std::move(a), std::move(b)) }
     | bitand_expr
 
 bitand_expr[ast::expr]:
-    | a=bitand_expr '&' b=shift_expr  { ast::BinOp(ast::BitAnd(), std::move(a), std::move(b)) }
+    | a=bitand_expr '&' b=shift_expr  { _field_ ast::BinOp(ast::BitAnd(), std::move(a), std::move(b)) }
     | shift_expr
 
 shift_expr[ast::expr]:
-    | a=shift_expr '<<' b=sum_expr  { ast::BinOp(ast::LShift(), std::move(a), std::move(b)) }
-    | a=shift_expr '>>' b=sum_expr  { ast::BinOp(ast::RShift(), std::move(a), std::move(b)) }
+    | a=shift_expr '<<' b=sum_expr  { _field_ ast::BinOp(ast::LShift(), std::move(a), std::move(b)) }
+    | a=shift_expr '>>' b=sum_expr  { _field_ ast::BinOp(ast::RShift(), std::move(a), std::move(b)) }
     | sum_expr
 #endregion bitwise
 
 #region arithmetic
 sum_expr[ast::expr]:
-    | a=sum_expr '+' b=term_expr  { ast::BinOp(ast::Add(), std::move(a), std::move(b)) }
-    | a=sum_expr '-' b=term_expr  { ast::BinOp(ast::Sub(), std::move(a), std::move(b)) }
+    | a=sum_expr '+' b=term_expr  { _field_ ast::BinOp(ast::Add(), std::move(a), std::move(b)) }
+    | a=sum_expr '-' b=term_expr  { _field_ ast::BinOp(ast::Sub(), std::move(a), std::move(b)) }
     | term_expr
 
 term_expr[ast::expr]:
-    | a=term_expr '*' b=factor_expr  { ast::BinOp(ast::Mul(), std::move(a), std::move(b)) }
-    | a=term_expr '/' b=factor_expr  { ast::BinOp(ast::Div(), std::move(a), std::move(b)) }
-    | a=term_expr '%' b=factor_expr  { ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
+    | a=term_expr '*' b=factor_expr  { _field_ ast::BinOp(ast::Mul(), std::move(a), std::move(b)) }
+    | a=term_expr '/' b=factor_expr  { _field_ ast::BinOp(ast::Div(), std::move(a), std::move(b)) }
+    | a=term_expr '%' b=factor_expr  { _field_ ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
     | factor_expr
 #endregion arithmetic
 
 #region unary
 factor_expr[ast::expr]:
-    | '+' a=factor_expr  { ast::UnaryOp(ast::UAdd(), std::move(a)) }
-    | '-' a=factor_expr  { ast::UnaryOp(ast::USub(), std::move(a)) }
-    | '~' a=factor_expr  { ast::UnaryOp(ast::BitInv(), std::move(a)) }
+    | '+' a=factor_expr  { _field_ ast::UnaryOp(ast::UAdd(), std::move(a)) }
+    | '-' a=factor_expr  { _field_ ast::UnaryOp(ast::USub(), std::move(a)) }
+    | '~' a=factor_expr  { _field_ ast::UnaryOp(ast::BitInv(), std::move(a)) }
     | power_expr
 #endregion unary
 
 #region power
 power_expr[ast::expr]:
-    | a=primary_expr '**' b=factor_expr  { ast::BinOp(ast::Pow(), std::move(a), std::move(b)) }
+    | a=primary_expr '**' b=factor_expr  { _field_ ast::BinOp(ast::Pow(), std::move(a), std::move(b)) }
     | primary_expr
 #endregion power
 #endregion operators
 
 primary_expr[ast::expr]:
-    | a=primary_expr '.' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
-    | a=primary_expr '::' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
-    | a=primary_expr '[' b=call_args ']'  { ast::Subscript(std::move(a), std::move(b)) }
-    | a=primary_expr '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
+    | a=primary_expr '.' b=name  { _field_ ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
+    | a=primary_expr '::' b=name  { _field_ ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
+    | a=primary_expr '[' b=call_args ']'  { _field_ ast::Subscript(std::move(a), std::move(b)) }
+    | a=primary_expr '(' b=call_args ')'  { _field_ ast::Call(std::move(a), std::move(b)) }
     | atom_expr
 
 atom_expr[ast::expr]:
-    | a=name  { ast::Name(std::move(a)) }
-    | a=NUMBER  { ast::Constant(a.get_number().value) }
-    | &STRING a=strings  { std::move(a) }
+    | a=name  { _field_ ast::Name(std::move(a)) }
+    | a=NUMBER  { _field_ ast::Constant(a.get_number().value) }
+    | &STRING a=strings  { _field_ std::move(a) }
     | group_expr
     | tuple_expr
     | array_expr
@@ -182,7 +185,7 @@ atom_expr[ast::expr]:
 
 # TODO: Actually implement
 call_args[ast::call_args]:
-    | { ast::call_args(make_sequence(), nullptr, nullptr) }
+    | { _field_ ast::call_args(make_sequence(), nullptr, nullptr) }
 
 name[std::string]:
     | a=NAME  { a.get_name().value }
@@ -195,25 +198,25 @@ group_expr[ast::expr]:
     | '(' a=expr ')'  { std::move(a) }
 
 tuple_expr[ast::expr]:
-    | '(' ')'  { ast::Tuple(make_sequence()) }
-    | '(' a=','.expr+ ','? ')'  { ast::Tuple(std::move(a)) }
+    | '(' ')'  { _field_ ast::Tuple(make_sequence()) }
+    | '(' a=','.expr+ ','? ')'  { _field_ ast::Tuple(std::move(a)) }
 
 array_expr[ast::expr]:
-    | '[' ']'  { ast::Array(make_sequence()) }
-    | '[' a=','.expr+ ','? ']'  { ast::Array(std::move(a)) }
+    | '[' ']'  { _field_ ast::Array(make_sequence()) }
+    | '[' a=','.expr+ ','? ']'  { _field_ ast::Array(std::move(a)) }
 
 block_expr[ast::expr]:
-    | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
+    | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { _field_ ast::Block(std::move(b), std::move(v), bool(c)) }
 
 type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
 func_def[ast::expr]:
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), std::move(t), std::move(b)) }
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { _field_ ast::FuncDef(std::move(n), std::move(a), std::move(t), std::move(b)) }
 
 # TODO
 func_args_def[ast::arg_defs]:
-    | { ast::arg_defs(make_sequence()) }
+    | { _field_ ast::arg_defs(make_sequence()) }
 
 # TODO
 class_def[ast::expr]:

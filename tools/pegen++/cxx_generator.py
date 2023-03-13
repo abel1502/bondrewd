@@ -554,6 +554,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     skip_actions: bool
     _varname_counter: int
     file: io.StringIO
+    _cur_rule: Rule | None
     
     def __init__(
         self,
@@ -569,6 +570,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self._varname_counter = 0
         self.debug = debug
         self.skip_actions = skip_actions
+        self._cur_rule = None
 
     def get_contents(self) -> str:
         result: str = self.file.getvalue()
@@ -583,8 +585,14 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     def remove_level(self) -> None:
         pass
 
-    def add_return(self, ret_val: str) -> None:
+    def add_return(self, ret_val: str, *,
+                   ignore_cache: bool = False) -> None:
+        assert not ret_val.startswith("std::move"), "Don't use explicit std::move in return statements"
         self.remove_level()
+        if not ignore_cache and self.should_cache(self._cur_rule):
+            self.print(f"store_cached(_state, RuleType::{self._cur_rule.name}, {ret_val});")
+        # if implicitly_move:
+        #     ret_val = f"std::move({ret_val})"
         self.print(f"return {ret_val};")
 
     def unique_varname(self, name: str = "tmpvar") -> str:
@@ -660,28 +668,36 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     def should_cache(self, node: Rule) -> bool:
         return node.memo and not node.left_recursive
     
+    @contextmanager
+    def push_cur_rule(self, rule: Rule) -> typing.Generator[None, None, None]:
+        assert self._cur_rule is None
+        self._cur_rule = rule
+        yield
+        self._cur_rule = None
+    
     def visit_Rule(self, node: Rule) -> None:
-        is_loop = node.is_loop()
-        is_gather = node.is_gather()
-        rhs = node.flatten()
+        with self.push_cur_rule(node):
+            is_loop = node.is_loop()
+            is_gather = node.is_gather()
+            rhs = node.flatten()
 
-        for line in str(node).splitlines():
-            self.print(f"// {line}")
-        
-        if node.left_recursive and node.leader:
-            # self.print(f"std::optional<{node.type}> parse_raw_{node.name}_rule();")
-            pass
+            for line in str(node).splitlines():
+                self.print(f"// {line}")
+            
+            if node.left_recursive and node.leader:
+                # self.print(f"std::optional<{node.type}> parse_raw_{node.name}_rule();")
+                pass
 
-        self.print(f"std::optional<{node.type}> parse_{node.name}_rule()")
-        
-        if node.left_recursive and node.leader:
-            self._set_up_rule_caching(node)
+            self.print(f"std::optional<{node.type}> parse_{node.name}_rule()")
+            
+            if node.left_recursive and node.leader:
+                self._set_up_rule_caching(node)
 
-        with self.if_impl(with_braces=True):
-            if is_loop:
-                self._handle_loop_rule_body(node, rhs)
-            else:
-                self._handle_default_rule_body(node, rhs)
+            with self.if_impl(with_braces=True):
+                if is_loop:
+                    self._handle_loop_rule_body(node, rhs)
+                else:
+                    self._handle_default_rule_body(node, rhs)
     
     def _set_up_rule_caching(self, node: Rule) -> None:
         with self.if_impl(with_braces=True):
@@ -690,10 +706,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             
             self.add_level()
             self.print(f"std::optional<{result_type}> _res = std::nullopt;")
-            # TODO: Guard for saving _res in case of success
             self.print(f"if (_res = get_cached<RuleType::{node.name}>(_state)) {{")
             with self.indent():
-                self.add_return("_res")
+                self.add_return("_res", ignore_cache=True)
             self.print("}")
             
             self.print("auto _state = tell();")
@@ -708,33 +723,30 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 with self.indent():
                     self.print("break;")
                 self.print("}")
-                self.print("_res = _raw;")
+                self.print("_res = std::move(_raw);")
                 self.print("_res_state = tell();")
             self.print("}")
             
             self.print("seek(_res_state);")
-            self.add_return("_res")
+            self.add_return("_res", ignore_cache=True)
         
         self.print(f"std::optional<{node.type}> parse_raw_{node.name}()")
         
     def _handle_default_rule_body(self, node: Rule, rhs: Rhs) -> None:
-        should_cache: bool = self.should_cache(node)
-        
         assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
         result_type: str = node.type
 
         self.add_level()
         self.print(f"std::optional<{result_type}> _res = std::nullopt;")
         
-        if should_cache:
+        if self.should_cache(node):
             self.print(f"if (_res = get_cached<RuleType::{node.name}>(_state)) {{")
             with self.indent():
-                self.add_return("_res")
+                self.add_return("_res", ignore_cache=True)
             self.print("}")
-            
-            # If `cache_guard.accept()` is called, the cache is automatically
-            # set upon leaving the function scope
-            self.print(f"CacheHelper<RuleType::{node.name}> cache_guard{{*this, _state, _res}};")
+        
+        self.print("const auto _state = tell();")
+        self.print("(void)_state;")
         
         # TODO: Pass the type as well?
         self.visit(
@@ -742,14 +754,11 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             is_loop=False,
             is_gather=node.is_gather(),
             rulename=node.name,
-            should_cache=should_cache,
         )
         
-        self.print("_res = std::nullopt;")
-        self.add_return("_res")
+        self.add_return("std::nullopt")
 
     def _handle_loop_rule_body(self, node: Rule, rhs: Rhs) -> None:
-        should_cache: bool = self.should_cache(node)
         is_repeat1: bool = node.name.startswith("_loop1")
         
         # TODO: Maybe loop results are different?
@@ -757,13 +766,17 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         result_type: str = node.type
         
         assert node.name, "Unexpected unnamed loop rule!"
-
+        
         self.add_level()
+        
+        self.print("const auto _state = tell();")
+        self.print("(void)_state;")
+
         self.print(f"std::optional<{result_type}> _res = std::nullopt;")
-        if should_cache:
+        if self.should_cache(node):
             self.print(f"if (_res = get_cached(_state, RuleType::{node.name})) {{")
             with self.indent():
-                self.add_return("_res")
+                self.add_return("_res", ignore_cache=True)
             self.print("}")
         self.print("auto _state = tell();")
         self.print("int _start_state = tell();")
@@ -774,8 +787,6 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             is_loop=True,
             is_gather=node.is_gather(),
             rulename=node.name,
-            should_cache=False,  # False because there shouldn't be any short-circuiting returns,
-                                 # and we don't have a cache-guard because of that
         )
         
         if is_repeat1:
@@ -785,22 +796,19 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.print("}")
         
         self.print("auto _seq = ast::make_sequence(std::move(_res));")
-        if should_cache:
-            # No cache guard used, so we store manually
-            self.print(f"store_cached(_state, RuleType::{node.name}, _seq);")
         self.add_return("_seq")
 
     def visit_Rhs(
-        self, node: Rhs, is_loop: bool, is_gather: bool, rulename: str | None, should_cache: bool
+        self, node: Rhs, is_loop: bool, is_gather: bool, rulename: str | None
     ) -> None:
         if is_loop:
             assert len(node.alts) == 1
         
         for alt in node.alts:
-            self.visit(alt, is_loop=is_loop, is_gather=is_gather, rulename=rulename, should_cache=should_cache)
+            self.visit(alt, is_loop=is_loop, is_gather=is_gather, rulename=rulename)
     
     def visit_Alt(
-        self, node: Alt, is_loop: bool, is_gather: bool, rulename: str | None, should_cache: bool
+        self, node: Alt, is_loop: bool, is_gather: bool, rulename: str | None
     ) -> None:
         self.print(f"{{ // {node}")
         with self.indent():
@@ -814,7 +822,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 if is_loop:
                     self.handle_alt_loop(node, rulename)
                 else:
-                    self.handle_alt_normal(node, is_gather, rulename, should_cache)
+                    self.handle_alt_normal(node, is_gather, rulename)
 
             self.print("seek(_state);")
             
@@ -825,13 +833,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.print("}")
         self.print("}")
     
-    def handle_alt_normal(self, node: Alt, is_gather: bool, rulename: str | None, should_cache: bool) -> None:
+    def handle_alt_normal(self, node: Alt, is_gather: bool, rulename: str | None) -> None:
         with self.nest_conditions(node):
             self.emit_action(node, skip=self.skip_actions, is_gather=is_gather)
 
-            # As the current option has parsed correctly, do not continue with the rest.
-            if should_cache:
-                self.print("cache_guard.accept();")
             self.add_return("_res")
 
     def handle_alt_loop(self, node: Alt, rulename: str | None) -> None:
@@ -867,14 +872,56 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         for _ in node.items:
             self.print("}")
 
+    def _wrap_make_field(self, node: Alt, action: str, patterns: dict[str, str]) -> str:
+        action = action.lstrip()
+        
+        for prefix, template in patterns.items():
+            if action.startswith(prefix):
+                assert self._cur_rule
+                assert node in self._cur_rule.rhs.alts, f"{prefix} can only be used in the immediate RHS of a rule!"
+                assert self._cur_rule.type
+                
+                tpl_type = self._cur_rule.type
+                tpl_type = self._unwrap_template(tpl_type, ("ast::field", "ast::maybe", "ast::sequence"))
+                
+                action = template.format(
+                    type=tpl_type,
+                    contents=action.removeprefix(prefix),
+                )
+                break
+        return action
+    
+    def _unwrap_template(self, tpl: str, prefixes: str | tuple[str]) -> str:
+        if isinstance(prefixes, str):
+            prefixes = (prefixes,)
+        
+        for prefix in prefixes:
+            if tpl.startswith(prefix + "<"):
+                return tpl.removeprefix(prefix + "<").removesuffix(">")
+            if tpl.startswith(prefix + " <"):
+                return tpl.removeprefix(prefix + " <").removesuffix(">")
+        
+        return tpl
+    
     def emit_action(self, node: Alt, skip: bool, is_gather: bool) -> None:
         if skip:
             self.print("_res = _dummy_whatever_();")
             return
         
         if node.action:
-            self.print(f"_res = {node.action};")
+            action: str = node.action
+            
+            if "wrap_make_field" in self.grammar.metas:
+                action = self._wrap_make_field(node, action, {
+                    "_field_": "make_field<{type}>({contents})",
+                    "_maybe_": "make_maybe<{type}>({contents})",
+                    "_sequence_": "make_sequence<{type}>({contents})",  # TODO: Maybe unwrap type?
+                })
+            
+            self.print(f"_res = {action};")
             return
+        
+        self.print(f"// !!! DBG: BAD ACTION: {node!r} (rule: {self._cur_rule!r})")
         
         # TODO: Horrible. Rewrite to not rely on the local variable array so much
         if len(self.local_variable_names) > 1:
