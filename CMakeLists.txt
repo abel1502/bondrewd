@@ -28,7 +28,7 @@ else()
     set(CXX_OS_FLAGS "-g")
 endif()
 
-set(CMAKE_CXX_FLAGS "${CXX_WARNING_FLAGS} -m64 -march=native ${CXX_OPTIMIZE_FLAGS} ${CXX_OS_FLAGS}")
+set(CMAKE_CXX_FLAGS "${CXX_WARNING_FLAGS} -m64 -march=native ${CXX_OPTIMIZE_FLAGS} ${CXX_OS_FLAGS} -ferror-limit=40")
 
 
 get_filename_component(LIB_ROOT "." ABSOLUTE)

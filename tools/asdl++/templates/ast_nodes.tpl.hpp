@@ -51,7 +51,7 @@ public:
     #pragma region Casts
     // TODO: Explicit?
     operator ast::field<{{ master_name or name }}>() const {
-        return ast::make_field<{{ master_name or name }}>(*this);
+        return ast::make_field<{{ master_name or name }}>(std::move(*this));
     }
     #pragma endregion Casts
 
@@ -92,7 +92,7 @@ public:
     #pragma region Casts
     // TODO: Explicit?
     operator ast::field<{{ name }}>() const {
-        return ast::make_field<{{ name }}>(*this);
+        return ast::make_field<{{ name }}>(std::move(*this));
     }
     #pragma endregion Casts
 

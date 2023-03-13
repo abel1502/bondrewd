@@ -152,7 +152,7 @@ target_atom[str]:
     | NAME { name.string }
     | NUMBER { number.string }
     | STRING { string.string }
-    | s=("?" | ":" | "&&" | "&") { s }
+    | s=("?" | ":" | "&&" | "&") { s.string }
     | !"}" !"]" OP { op.string }
 
 namespaced_name[str]:

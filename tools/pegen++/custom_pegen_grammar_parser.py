@@ -677,7 +677,7 @@ class CustomGrammarParser(Parser):
         if (
             (s := self._tmp_1())
         ):
-            return s;
+            return s . string;
         self._reset(mark)
         if (
             (self.negative_lookahead(self.expect, "}"))

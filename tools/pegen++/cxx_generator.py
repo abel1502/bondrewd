@@ -478,7 +478,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
         return _DeducedType(result_type, item_type.is_ignored)
     
     def deduce_loop_rule_type(self, node: Rule) -> _DeducedType:
-        item_type: _DeducedType = self.visit(node.rhs.alts[0].items[0])
+        item_type: _DeducedType = self.visit(node.rhs.alts[0])
         
         return self.seq_or_vec_of(item_type)
     
@@ -863,16 +863,15 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         self.print(f"std::optional<{item_type}> _res = std::nullopt;")
         self.print(f"std::vector<{item_type}> _children{{}};")
-        self.print("size_t _n = 0;")
         self.visit(
             rhs,
             is_loop=True,
-            is_gather=node.is_gather(),
+            is_gather=False,  # Loops can't be gathers
             rulename=node.name,
         )
         
         if is_repeat1:
-            self.print("if (_n == 0) {")
+            self.print("if (_children.size() == 0) {")
             with self.indent():
                 self.add_return("std::nullopt")
             self.print("}")
@@ -931,9 +930,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 # Loops are never gathers
                 self.emit_action(node, skip=self.skip_actions, is_gather=False)
 
-                # Add the result of rule to the temporary buffer of children. This buffer
-                # will populate later an asdl_seq with all elements to return.
-                self.print("_children.push_back(std::move(_res.value()));")
+                self.print("_children.push_back(*_res);")
                 self.print("_state = tell();")
                 self.print("continue;")
             self.print("break;")
@@ -956,10 +953,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 
                 if call.force_true:
                     line += f" auto {val_var} = {opt_var};"
-                elif call.function.startswith("lexer."):
-                    line += f" auto {val_var} = *{opt_var};"
                 else:
-                    line += f" auto {val_var} = std::move({opt_var}.value());"
+                    line += f" auto {val_var} = *{opt_var};"
+            elif call.force_true:
+                line += f" (void){call.assigned_variable};"
             
             self.print(line)
         

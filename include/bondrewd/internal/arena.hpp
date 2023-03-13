@@ -29,7 +29,7 @@ class arena_ptr;
  * in the common heap. What it does is allocate the tracking structures in an arena,
  * allowing for less memory fragmentation than many independent shared_ptrs would
  * have caused.
- * 
+ *
  * Note that while it has a global instance, you may create your own arenas. The only requirement
  * is that their address must be a constant expression (i.e. they must be a global variable).
  */
@@ -59,7 +59,7 @@ public:
 
         new (ptr) T{std::forward<Args>(args)...};
 
-        return arena_ptr<T>{arena, arena->allocations.emplace_back(ptr)};
+        return arena_ptr<T, arena>{arena->allocations.emplace_back(ptr)};
     }
     #pragma endregion Factory
 
@@ -71,7 +71,7 @@ protected:
         template <typename T>
         Allocation(T *ptr) :
             ptr{ptr},
-            deleter{[](void *ptr) { delete static_cast<T *>(ptr); }} {}
+            deleter{[](void *ptr_) { delete static_cast<T *>(ptr_); }} {}
         #pragma endregion Constructors
 
         #pragma region Service constructors

@@ -6,8 +6,7 @@
 # TODO: Force parentheses around some operators (like bitwise)?
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Explicitly specify ast::nodes::?
-# TODO: Make `lexer.expect().*()` return optional instead of pointers; remove related bloat
-#       Otherwise use `*` instead of `.value()` everywhere
+# TODO: Handle `maybe`s better?
 
 @subheader '''\
 #include <string>
@@ -51,7 +50,7 @@ assign_op[ast::assign_op]:
     | '^='   { ast::AsgnBitXor() }
 
 var_def_stmt[ast::stmt]:
-    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), t.value_or(nullptr), v.value_or(nullptr), true, bool(c)) }
+    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), t ? *t : nullptr, v ? *v : nullptr, true, bool(c)) }
 
 # TODO: Decide on the body contents
 impl_stmt[ast::stmt]:
@@ -65,7 +64,7 @@ expr_stmt[ast::stmt]:
 # TODO: Support constants!
 expr[ast::expr]:
     | func_def
-    | class_def
+    # | class_def
     | block_expr
     # | if_expr
     # | for_expr
@@ -81,11 +80,11 @@ expr_or_unit[ast::expr]:
 #region operators
 #region logical
 disjunction_expr[ast::expr]:
-    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or(), ...) }
+    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or(), ast::make_sequence<ast::expr>()) }
     | conjunction_expr
 
 conjunction_expr[ast::expr]:
-    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And(), ...) }
+    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And(), ast::make_sequence<ast::expr>()) }
     | inversion_expr
 
 inversion_expr[ast::expr]:
@@ -102,7 +101,7 @@ comparison_expr[ast::expr]:  # TODO: Extract from sequence somehow (without a 10
     }
     | bidir_cmp_expr
 
-comparison_followup_pair[std::pair<ast::cmp_op, ast::expr>]:
+comparison_followup_pair[std::pair<ast::field<ast::cmp_op>, ast::field<ast::expr>>]:
     | o=comparison_op a=bidir_cmp_expr  { std::make_pair(std::move(o), std::move(a)) }
 
 comparison_op[ast::cmp_op]:
@@ -213,15 +212,15 @@ type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
 func_def[ast::expr]:
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), std::move(t), std::move(b)) }
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), t ? *t : nullptr, std::move(b)) }
 
 # TODO
 func_args_def[ast::arg_defs]:
     | { ast::arg_defs(ast::make_sequence<ast::arg_def>()) }
 
 # TODO
-class_def[ast::expr]:
-    | c='ctime'? 'class' n=name '(' a=func_args_def ')' ';'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
+# class_def[ast::expr]:
+#     | c='ctime'? 'class' n=name '(' a=func_args_def ')' ';'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
 #endregion expr
 
 # TODO: Finish!
