@@ -146,12 +146,7 @@ maybe<T> make_maybe(std::optional<T> value) {
 #pragma region ASDL basic types
 // Types that match the C++ built-in ones aren't redefined here
 
-// Identifiers are stored as views to the buffered source code
-using identifier = std::string_view;
-
-using string = std::string;
-
-using string_view = std::string_view;
+using identifier = std::string;
 
 // TODO: Temporary! Will be replaced with a compile-time object type
 // Monostate represents unit for now

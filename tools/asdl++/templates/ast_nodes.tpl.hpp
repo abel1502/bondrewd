@@ -49,12 +49,10 @@ public:
     #pragma endregion Uniform fields access
 
     #pragma region Casts
-    {%- if master_name %}
     // TODO: Explicit?
-    operator ast::field<{{ master_name }}>() const {
-        return ast::make_field<{{ master_name }}>(*this);
+    operator ast::field<{{ master_name or name }}>() const {
+        return ast::make_field<{{ master_name or name }}>(*this);
     }
-    {%- endif %}
     #pragma endregion Casts
 
     #pragma region Extras
@@ -90,6 +88,13 @@ public:
     {{- gen_fields(asdl_type.attributes) }}
     {%- endfilter %}
     #pragma endregion Attributes
+
+    #pragma region Casts
+    // TODO: Explicit?
+    operator ast::field<{{ name }}>() const {
+        return ast::make_field<{{ name }}>(*this);
+    }
+    #pragma endregion Casts
 
     #pragma region Extras
     {% filter indent(width=4) %}

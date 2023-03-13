@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <typeinfo>
+#include <variant>
 
 
 /// These are some common macros that are useful with other macros
@@ -64,14 +65,19 @@
 namespace bondrewd::util {
 
 
+#pragma region error
 // DECLARE_ERROR(error, std::runtime_error)
+#pragma endregion error
 
 
+#pragma region logging
 extern int log_verbosity;
 
 void _dbg(bool isError, int level, const char* func_name, int line_no, const char* msg, ...);
+#pragma endregion logging
 
 
+#pragma region is_specialization
 template <typename, template<typename ...> typename>
 constexpr bool _is_specialization = false;
 
@@ -81,6 +87,37 @@ constexpr bool _is_specialization<T<Args...>, T> = true;
 
 template <typename T, template<typename ...> typename Tpl>
 concept specialization_of = _is_specialization<T, Tpl>;
+#pragma endregion is_specialization
+
+
+#pragma region variant_cast
+template <typename ... As>
+class variant_cast {
+public:
+    variant_cast(const std::variant<As...> &value_) : value{value_} {}
+    variant_cast(std::variant<As...> &&value_) : value{std::move(value_)} {}
+
+    variant_cast(const variant_cast &) = default;
+    variant_cast(variant_cast &&) = default;
+    variant_cast &operator=(const variant_cast &) = default;
+    variant_cast &operator=(variant_cast &&) = default;
+
+    template <typename ... ToAs>
+    operator std::variant<ToAs...>() const {
+        return std::visit([](auto &&arg) -> std::variant<ToAs...> { return std::forward<decltype(arg)>(arg); }, std::move(value));
+    }
+
+protected:
+    std::variant<As...> value;
+
+};
+
+template <typename ... As>
+variant_cast(const std::variant<As...> &) -> variant_cast<As...>;
+
+template <typename ... As>
+variant_cast(std::variant<As...> &&) -> variant_cast<As...>;
+#pragma endregion variant_cast
 
 
 }  // namespace bondrewd::util

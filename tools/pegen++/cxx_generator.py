@@ -148,6 +148,7 @@ class CXXCallMakerVisitor(GrammarVisitor):
             name = self.gen.name_loop(node.node, True)
         elif isinstance(node, Gather):
             name = self.gen.name_gather(node)
+            self.gen.todo[name].rhs.alts[0].items[0].name = None
         else:
             assert False, f"Not a complex rule: {node}"
         
@@ -292,6 +293,88 @@ class CXXCallMakerVisitor(GrammarVisitor):
         return self.visit(node)
 
 
+class CXXActionDeductionVisitor(GrammarVisitor):
+    gen: CXXParserGenerator
+    
+    def __init__(self, parser_generator: CXXParserGenerator):
+        self.gen = parser_generator
+    
+    def apply(self) -> None:
+        for rule in self.gen.all_rules.values():
+            self.visit(rule)
+    
+    def visit_Rule(self, node: Rule) -> None:
+        self.visit(node.rhs)
+    
+    def visit_Rhs(self, node: Rhs) -> None:
+        for alt in node.alts:
+            self.visit(alt)
+    
+    def visit_Alt(self, node: Alt) -> None:
+        significant_items: list[NamedItem] = []
+        named_items: list[NamedItem] = []
+        
+        for item in node.items:
+            if self.visit(item):
+                significant_items.append(item)
+            if item.name:
+                named_items.append(item)
+        
+        if node.action:
+            return
+        
+        if len(significant_items) == 1:
+            item: NamedItem = significant_items[0]
+            
+            if not item.name:
+                item.name = "_single_result"
+            
+            node.action = f"std::move({item.name})"
+            return
+        
+        if len(named_items) == 1:
+            node.action = f"std::move({named_items[0].name})"
+            return
+        
+        raise GrammarError(f"Could not deduce action for alt: {node!r}")
+    
+    def visit_NamedItem(self, node: NamedItem) -> bool:
+        return self.visit(node.item)
+
+    def visit_NameLeaf(self, node: NameLeaf) -> bool:
+        return True
+
+    def visit_StringLeaf(self, node: StringLeaf) -> bool:
+        return False
+    
+    def visit_Group(self, node: Group) -> bool:
+        return True
+    
+    def visit_Opt(self, node: Opt) -> bool:
+        return self.visit(node.node)
+    
+    def visit_Repeat0(self, node: Repeat0) -> bool:
+        return self.visit(node.node)
+    
+    def visit_Repeat1(self, node: Repeat1) -> bool:
+        return self.visit(node.node)
+    
+    def visit_Gather(self, node: Gather) -> bool:
+        return self.visit(node.node)
+    
+    def visit_Forced(self, node: Forced) -> bool:
+        return self.visit(node.node)
+    
+    def visit_PositiveLookahead(self, node: PositiveLookahead) -> bool:
+        return False
+    
+    def visit_NegativeLookahead(self, node: NegativeLookahead) -> bool:
+        return False
+    
+    def visit_Cut(self, node: Cut) -> bool:
+        return False
+
+
 @dataclass(frozen=True)
 class _DeducedType:
     type: str | None
@@ -319,18 +402,12 @@ class _DeducedType:
 
 
 class CXXTypeDeductionVisitor(GrammarVisitor):
-    # TODO: Also unwrap quoted types!
-    # TODO: Also deduce types for alts with a single nonterminal and no actions
-    
     gen: CXXParserGenerator
     wrap_ast_types: bool
     rules_stack: typing.List[Rule]
     visited_rules: typing.Set[Rule]
     
-    def __init__(
-        self,
-        parser_generator: CXXParserGenerator,
-    ):
+    def __init__(self, parser_generator: CXXParserGenerator):
         self.gen = parser_generator
         self.wrap_ast_types = "wrap_ast_types" in self.gen.grammar.metas
         self.rules_stack = []
@@ -353,7 +430,6 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
             not s.startswith(("ast::field", "ast::maybe", "ast::sequence"))
         ):
             s = f"ast::field<{s}>"
-        # print(f"!!! {s!r}")
         return s
     
     def deduce_rule_type(self, rule: Rule | str) -> _DeducedType:
@@ -387,7 +463,8 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
         
         return self.deduce_rule_type(rulename)
     
-    def seq_or_vec_of(self, item_type: _DeducedType) -> _DeducedType:
+    @staticmethod
+    def seq_or_vec_of(item_type: _DeducedType) -> _DeducedType:
         if item_type.is_unknown:
             return item_type
         
@@ -429,6 +506,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
                 # if node not in self.rules_stack[:-1]:
                 #     self.visit(node.rhs)
                 return _DeducedType(self.unquote(node.type))
+
             return self.visit(node.rhs)
     
     def visit_Rhs(self, node: Rhs) -> _DeducedType:
@@ -450,7 +528,7 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
         #     raise GrammarError(f"Could not deduce type for rule: {node!r} (no candidates)")
         
         return next(iter(types))
-    
+
     def visit_Alt(self, node: Alt) -> _DeducedType:
         results: list[_DeducedType] = []
         items_lookup: dict[str, _DeducedType] = {}
@@ -465,17 +543,17 @@ class CXXTypeDeductionVisitor(GrammarVisitor):
             if not result.is_ignored:
                 results.append(result)
         
-        if len(results) == 1:
-            return results[0]
-        
         def check_simple_action(action: str) -> _DeducedType | None:
             if action in items_lookup:
-                # print(f">> alt {node!r} {items_lookup[action]!r}")
                 return items_lookup[action]
+            
+            action = action.strip().removeprefix("std::move(").removesuffix(")").strip()
+            if action in items_lookup:
+                return items_lookup[action]
+            
             return None
 
         return (check_simple_action(node.action) or
-                check_simple_action(f"std::move ( {node.action} )") or
                 _DeducedType(None))
         
         # raise GrammarError(f"Ambiguous rule type: {node!r} can be one of {results}")
@@ -623,6 +701,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         self.collect_todo()
         
+        CXXActionDeductionVisitor(self).apply()
+        
         CXXTypeDeductionVisitor(self).apply()
         
         # TODO: Mark all loops for caching?
@@ -765,22 +845,24 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         # TODO: Maybe loop results are different?
         assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
         result_type: str = node.type
-        result_type = self._unwrap_template(result_type, "ast::sequence")
+        returns_seq: bool = result_type.startswith("ast::sequence")
+        item_type: str = self._unwrap_template(result_type, ("ast::sequence", "std::vector"))
         
         assert node.name, "Unexpected unnamed loop rule!"
         
         self.add_level()
         
         self.print("auto _state = tell();")
-        self.print("int _start_state = tell();")
 
-        self.print(f"std::optional<{result_type}> _res = std::nullopt;")
         if self.should_cache(node):
+            self.print(f"std::optional<{result_type}> _cache_res = std::nullopt;")
             self.print(f"if (_res = get_cached(_state, RuleType::{node.name})) {{")
             with self.indent():
                 self.add_return("_res", ignore_cache=True)
             self.print("}")
-        self.print(f"std::vector<{result_type}> _children{{}};")
+        
+        self.print(f"std::optional<{item_type}> _res = std::nullopt;")
+        self.print(f"std::vector<{item_type}> _children{{}};")
         self.print("size_t _n = 0;")
         self.visit(
             rhs,
@@ -795,8 +877,11 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.add_return("std::nullopt")
             self.print("}")
         
-        self.print(f"auto _seq = ast::make_sequence<{result_type}>(std::move(_res));")
-        self.add_return("_seq")
+        if returns_seq:
+            self.print(f"auto _seq = ast::make_sequence<{item_type}>(std::move(_children));")
+            self.add_return("_seq")
+        else:
+            self.add_return("_children")
 
     def visit_Rhs(
         self, node: Rhs, is_loop: bool, is_gather: bool, rulename: str | None
@@ -848,7 +933,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
 
                 # Add the result of rule to the temporary buffer of children. This buffer
                 # will populate later an asdl_seq with all elements to return.
-                self.print("_children.push_back(_res.value());")
+                self.print("_children.push_back(std::move(_res.value()));")
                 self.print("_state = tell();")
                 self.print("continue;")
             self.print("break;")
@@ -883,25 +968,6 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         for _ in node.items:
             self.print("}")
-
-    def _wrap_make_field(self, node: Alt, action: str, patterns: dict[str, str]) -> str:
-        action = action.lstrip()
-        
-        for prefix, template in patterns.items():
-            if action.startswith(prefix):
-                assert self._cur_rule
-                assert node in self._cur_rule.rhs.alts, f"{prefix} can only be used in the immediate RHS of a rule!"
-                assert self._cur_rule.type
-                
-                tpl_type = self._cur_rule.type
-                tpl_type = self._unwrap_template(tpl_type, ("ast::field", "ast::maybe", "ast::sequence"))
-                
-                action = template.format(
-                    type=tpl_type,
-                    contents=action.removeprefix(prefix),
-                )
-                break
-        return action
     
     def _unwrap_template(self, tpl: str, prefixes: str | tuple[str]) -> str:
         if isinstance(prefixes, str):
@@ -916,40 +982,23 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         return tpl
     
     def emit_action(self, node: Alt, skip: bool, is_gather: bool) -> None:
-        if skip:
-            self.print("_res = _dummy_whatever_();")
-            return
+        assert not skip, "Skipping actions is not supported yet!"
         
         if node.action:
-            action: str = node.action
-            
-            if "wrap_make_field" in self.grammar.metas:
-                action = self._wrap_make_field(node, action, {
-                    "_field_": "ast::make_field<{type}>({contents})",
-                    "_maybe_": "ast::make_maybe<{type}>({contents})",
-                    "_sequence_": "ast::make_sequence<{type}>({contents})",  # TODO: Maybe unwrap type?
-                })
-            
-            self.print(f"_res = {action};")
+            # self.print(f"_res.emplace({node.action});")
+            self.print(f"_res = {node.action};")
             return
+        
+        if is_gather:
+            self.print("_res = std::move(seq_var);")
         
         self.print(f"// !!! DBG: BAD ACTION: {node!r} (rule: {self._cur_rule!r})")
         
         # TODO: Horrible. Rewrite to not rely on the local variable array so much
-        if len(self.local_variable_names) > 1:
-            if is_gather:
-                assert len(self.local_variable_names) == 2
-                # TODO: Remove!
-                self.print(f"// !!! DBG: emit_default_action(gather) locals: {self.local_variable_names}")
-                self.print(
-                    f"_res.push_back(std::move({self.local_variable_names[1]}));"
-                )
-            else:
-                self.print(
-                    f"_res = _dummy_whatever_({', '.join(self.local_variable_names)});"
-                )
-        else:
-            self.print(f"_res = {self.local_variable_names[0]};")
+        if len(self.local_variable_names) == 1:
+            self.print(f"_res = std::move({self.local_variable_names[0]});")
+        
+        raise GrammarError(f"Could not emit action for rule '{self._cur_rule.name}' ({node!r})")
 
     def emit_call(self, node: NamedItem) -> FunctionCall:
         call = self.callmakervisitor.generate_call(node)

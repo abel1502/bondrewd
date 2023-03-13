@@ -40,8 +40,8 @@ builtin_types: typing.Dict[str, str] = {
     "int": "int",
     "unsigned": "unsigned",
     "bool": "bool",
-    "string": "string",
-    "string_view": "string_view",
+    "string": "std::string",
+    "string_view": "std::string_view",
     "constant": "constant",
     "SrcLocation": "lex::SrcLocation",
 }
