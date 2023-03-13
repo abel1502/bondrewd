@@ -7,7 +7,6 @@
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Automatically add { std::move(a) } to all rules with a single non-terminal
 # TODO: Explicitly specify ast::nodes::?
-# TODO: Save optionals into variables with an underscore prefix, and unpack their true values into the named vars
 
 @subheader '''\
 #include <string>
@@ -92,13 +91,13 @@ conjunction_expr[ast::expr]:
     | inversion_expr
 
 inversion_expr[ast::expr]:
-    | 'not' a=inversion_expr  { _field_ ast::UnaryOp(ast::Not(), std::move(a)) }
+    | 'not' a=inversion_expr  { _field_ ast::UnOp(ast::Not(), std::move(a)) }
     | comparison_expr
 #endregion logical
 
 #region comparison
 comparison_expr[ast::expr]:  # TODO: Extract from sequence somehow (without a 1000-char rule, preferably)
-    | a=bidir_cmp_expr b=comparison_followup_pair+  { _field_ ast::Compare(std::move(a), make_sequence(...), make_sequence(...)) }
+    | a=bidir_cmp_expr b=comparison_followup_pair+  { _field_ ast::Compare(std::move(a), ast::make_sequence(...), ast::make_sequence(...)) }
     | bidir_cmp_expr
 
 comparison_followup_pair[std::pair<ast::cmp_op, ast::expr>]:
@@ -154,9 +153,9 @@ term_expr[ast::expr]:
 
 #region unary
 factor_expr[ast::expr]:
-    | '+' a=factor_expr  { _field_ ast::UnaryOp(ast::UAdd(), std::move(a)) }
-    | '-' a=factor_expr  { _field_ ast::UnaryOp(ast::USub(), std::move(a)) }
-    | '~' a=factor_expr  { _field_ ast::UnaryOp(ast::BitInv(), std::move(a)) }
+    | '+' a=factor_expr  { _field_ ast::UnOp(ast::UAdd(), std::move(a)) }
+    | '-' a=factor_expr  { _field_ ast::UnOp(ast::USub(), std::move(a)) }
+    | '~' a=factor_expr  { _field_ ast::UnOp(ast::BitInv(), std::move(a)) }
     | power_expr
 #endregion unary
 
@@ -185,7 +184,7 @@ atom_expr[ast::expr]:
 
 # TODO: Actually implement
 call_args[ast::call_args]:
-    | { _field_ ast::call_args(make_sequence(), nullptr, nullptr) }
+    | { _field_ ast::call_args(ast::make_sequence(), nullptr, nullptr) }
 
 name[std::string]:
     | a=NAME  { a.get_name().value }
@@ -198,11 +197,11 @@ group_expr[ast::expr]:
     | '(' a=expr ')'  { std::move(a) }
 
 tuple_expr[ast::expr]:
-    | '(' ')'  { _field_ ast::Tuple(make_sequence()) }
+    | '(' ')'  { _field_ ast::Tuple(ast::make_sequence()) }
     | '(' a=','.expr+ ','? ')'  { _field_ ast::Tuple(std::move(a)) }
 
 array_expr[ast::expr]:
-    | '[' ']'  { _field_ ast::Array(make_sequence()) }
+    | '[' ']'  { _field_ ast::Array(ast::make_sequence()) }
     | '[' a=','.expr+ ','? ']'  { _field_ ast::Array(std::move(a)) }
 
 block_expr[ast::expr]:
@@ -216,7 +215,7 @@ func_def[ast::expr]:
 
 # TODO
 func_args_def[ast::arg_defs]:
-    | { _field_ ast::arg_defs(make_sequence()) }
+    | { _field_ ast::arg_defs(ast::make_sequence()) }
 
 # TODO
 class_def[ast::expr]:

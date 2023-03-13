@@ -8,7 +8,7 @@
 namespace bondrewd::ast::nodes {
 
 
-{%- macro gen_class(name, asdl_type) -%}
+{%- macro gen_class(name, asdl_type, master_name="") -%}
 {%- if asdl_type is instanceof asdl.Product or asdl_type is instanceof asdl.Constructor %}
 {#- Product = concrete struct #}
 {#- Constructor = Product without attributes #}
@@ -48,6 +48,15 @@ public:
     }
     #pragma endregion Uniform fields access
 
+    #pragma region Casts
+    {%- if master_name %}
+    // TODO: Explicit?
+    operator ast::field<{{ master_name }}>() const {
+        return ast::make_field<{{ master_name }}>(*this);
+    }
+    {%- endif %}
+    #pragma endregion Casts
+
     #pragma region Extras
     {% filter indent(width=4) %}
     {{- asdl_type.extras }}
@@ -57,7 +66,7 @@ public:
 {%- elif asdl_type is instanceof asdl.Sum %}
 {#- Sum = abstract class #}
 {%- for alt in asdl_type.types %}
-{{- gen_class(alt.name, alt) }}
+{{- gen_class(alt.name, alt, master_name=name) }}
 
 {% endfor %}
 class {{ name }} : public _AST<{{ helpers.names_of_alts(asdl_type) | join(", ") }}> {

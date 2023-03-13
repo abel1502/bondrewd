@@ -20,17 +20,9 @@ module Bondrewd {
          | Call(expr func, call_args args)
          | Subscript(expr value, call_args args)
          | Block(stmt* body, expr value, bool ctime)
-         | FuncDef(identifier name, arg_defs args, expr? return_type, expr body) + """\
-            // TODO: Subject to changes!
-            constexpr bool is_ctime() const {
-                if (!body->is<Block>())
-                    return false;
-                
-                return body->as<Block>().ctime;
-            }
-         """
+         | FuncDef(identifier name, arg_defs args, expr? return_type, expr body)
          | ClassDef(identifier name, expr body, bool ctime)
-         | BinOp(expr left, binary_op op, expr right)
+         | BinOp(binary_op op, expr left, expr right)
          | UnOp(unary_op op, expr operand)
          | Compare(expr left, cmp_op* op, expr* operands)
          | BoolOp(bool_op op, expr* values)

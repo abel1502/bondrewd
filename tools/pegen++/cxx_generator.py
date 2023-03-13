@@ -174,7 +174,7 @@ class CXXCallMakerVisitor(GrammarVisitor):
             return FunctionCall(
                 assigned_variable=f"{name}_var",
                 function=f"lexer.expect().token",
-                arguments=[f"TokenType::{name}"],
+                arguments=[f"lex::TokenType::{name.lower()}"],
                 comment=f"token={name}",
             )
 
@@ -705,14 +705,15 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             result_type: str = node.type
             
             self.add_level()
-            self.print(f"std::optional<{result_type}> _res = std::nullopt;")
-            self.print(f"if (_res = get_cached<RuleType::{node.name}>(_state)) {{")
-            with self.indent():
-                self.add_return("_res", ignore_cache=True)
-            self.print("}")
             
             self.print("auto _state = tell();")
             self.print("auto _res_state = tell();")
+            
+            self.print(f"std::optional<{result_type}> _res = std::nullopt;")
+            self.print(f"if ((_res = get_cached<RuleType::{node.name}>(_state))) {{")
+            with self.indent():
+                self.add_return("_res", ignore_cache=True)
+            self.print("}")
             
             self.print("while (true) {")
             with self.indent():
@@ -764,13 +765,14 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         # TODO: Maybe loop results are different?
         assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
         result_type: str = node.type
+        result_type = self._unwrap_template(result_type, "ast::sequence")
         
         assert node.name, "Unexpected unnamed loop rule!"
         
         self.add_level()
         
-        self.print("const auto _state = tell();")
-        self.print("(void)_state;")
+        self.print("auto _state = tell();")
+        self.print("int _start_state = tell();")
 
         self.print(f"std::optional<{result_type}> _res = std::nullopt;")
         if self.should_cache(node):
@@ -778,8 +780,6 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             with self.indent():
                 self.add_return("_res", ignore_cache=True)
             self.print("}")
-        self.print("auto _state = tell();")
-        self.print("int _start_state = tell();")
         self.print(f"std::vector<{result_type}> _children{{}};")
         self.print("size_t _n = 0;")
         self.visit(
@@ -795,7 +795,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.add_return("std::nullopt")
             self.print("}")
         
-        self.print("auto _seq = ast::make_sequence(std::move(_res));")
+        self.print(f"auto _seq = ast::make_sequence<{result_type}>(std::move(_res));")
         self.add_return("_seq")
 
     def visit_Rhs(
@@ -826,7 +826,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
 
             self.print("seek(_state);")
             
-            if "_cut_var" in vars:
+            if has_cut:
                 self.print("if (_cut_var) {")
                 with self.indent():
                     self.add_return("std::nullopt")
@@ -848,7 +848,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
 
                 # Add the result of rule to the temporary buffer of children. This buffer
                 # will populate later an asdl_seq with all elements to return.
-                self.print("_children.push_back(_res);")
+                self.print("_children.push_back(_res.value());")
                 self.print("_state = tell();")
                 self.print("continue;")
             self.print("break;")
@@ -864,7 +864,19 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             if call.force_true:
                 cond = "true"
             
-            self.print(f"if ({cond}) {{")
+            line: str = f"if ({cond}) {{"
+            if call.assigned_variable.startswith("_user_opt_"):
+                opt_var: str = call.assigned_variable
+                val_var: str = opt_var.removeprefix("_user_opt_")
+                
+                if call.force_true:
+                    line += f" auto {val_var} = {opt_var};"
+                elif call.function.startswith("lexer."):
+                    line += f" auto {val_var} = *{opt_var};"
+                else:
+                    line += f" auto {val_var} = std::move({opt_var}.value());"
+            
+            self.print(line)
         
         with self.indent():
             yield
@@ -913,9 +925,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             
             if "wrap_make_field" in self.grammar.metas:
                 action = self._wrap_make_field(node, action, {
-                    "_field_": "make_field<{type}>({contents})",
-                    "_maybe_": "make_maybe<{type}>({contents})",
-                    "_sequence_": "make_sequence<{type}>({contents})",  # TODO: Maybe unwrap type?
+                    "_field_": "ast::make_field<{type}>({contents})",
+                    "_maybe_": "ast::make_maybe<{type}>({contents})",
+                    "_sequence_": "ast::make_sequence<{type}>({contents})",  # TODO: Maybe unwrap type?
                 })
             
             self.print(f"_res = {action};")
@@ -951,6 +963,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         if call.assigned_variable:
             call.assigned_variable = self.dedupe(call.assigned_variable)
+        
+        if not call.assigned_variable.startswith("_"):
+            call.assigned_variable = f"_user_opt_{call.assigned_variable}"
         
         self.print(call.get_full_call())
         
