@@ -1,8 +1,10 @@
 #include <bondrewd/internal/common.hpp>
-#include <bondrewd/lex/lexer.hpp>
 
 #include <boost/program_options.hpp>
 #include <iostream>
+
+#include "demo_lexer.hpp"
+#include "demo_parser.hpp"
 
 
 #pragma region Helpers
@@ -43,30 +45,9 @@ auto parse_args(int argc, char **argv) {
 
 
 void run_test() {
-    using namespace bondrewd::lex;
+    // test_funcs::lexer();
+    test_funcs::parser();
 
-    std::cout << "Running debug test...\n";
-
-    auto lexer = Lexer::from_string(
-        "int main(type a, float *bcd) -> std::vector<something> {\n"
-        "    *bcd = 1.2e3;  // not 12345 \n"
-        "    *bcd = .5;  /* /* still not 12345 */*/ \n"
-        "    *bcd = 12345.e+0;  # Hey!! \n"
-        "    *bcd = 0xADC.DEpF; \n"
-        "    return 0;\n"
-        "}"
-    );
-
-    while (lexer) {
-        lexer.advance();
-
-        if (bondrewd::util::log_verbosity >= 2) {
-            std::cout << ">";
-            lexer.dump(std::cout) << "\n";
-        }
-    }
-
-    lexer.dump(std::cout) << "\n";
     std::cout << "Done.\n";
 }
 

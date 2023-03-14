@@ -11,6 +11,7 @@
 #include <string>
 #include <cstdint>
 #include <concepts>
+#include <type_traits>
 #include <tuple>
 #include <utility>
 
@@ -79,10 +80,10 @@ protected:
 // in reality, so it's not really a problem.
 
 template <typename T>
-concept abstract_ast_node = std::derived_from<T, _AbstractASTNode>;
+concept abstract_ast_node = std::derived_from<std::decay_t<T>, _AbstractASTNode>;
 
 template <typename T>
-concept concrete_ast_node = std::derived_from<T, _ConcreteASTNode>;
+concept concrete_ast_node = std::derived_from<std::decay_t<T>, _ConcreteASTNode>;
 #pragma endregion Concepts
 
 

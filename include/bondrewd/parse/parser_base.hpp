@@ -32,15 +32,15 @@ public:
 
     #pragma region Factories
     static T from_stream(std::istream &input, std::string_view filename = "") {
-        return T{Lexer::from_stream(input, filename)};
+        return T{lex::Lexer::from_stream(input, filename)};
     }
 
     static T from_string(std::string_view input, std::string_view filename = "") {
-        return T{Lexer::from_string(input, filename)};
+        return T{lex::Lexer::from_string(input, filename)};
     }
 
     static T from_file(std::filesystem::path filename) {
-        return T{Lexer::from_file(filename)};
+        return T{lex::Lexer::from_file(filename)};
     }
     #pragma endregion Factories
 
@@ -48,7 +48,7 @@ protected:
     #pragma region Fields
     lex::Lexer lexer;
     #pragma endregion Fields
-    
+
     #pragma region Error
     // TODO: Error functions?
 

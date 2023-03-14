@@ -15,6 +15,7 @@
 #include <variant>
 
 
+#pragma region Macros
 /// These are some common macros that are useful with other macros
 #define MACRO_FUNC(...) do {__VA_ARGS__} while (0)
 #define MACRO_COMMA  ,
@@ -60,6 +61,7 @@
         ERR("Shouldn't be reachable");  \
         abort();                        \
     }
+#pragma endregion Macros
 
 
 namespace bondrewd::util {
@@ -118,6 +120,27 @@ variant_cast(const std::variant<As...> &) -> variant_cast<As...>;
 template <typename ... As>
 variant_cast(std::variant<As...> &&) -> variant_cast<As...>;
 #pragma endregion variant_cast
+
+
+#pragma region never_t
+class never_t {
+public:
+    never_t() = delete;
+
+    never_t(const never_t &) = default;
+    never_t(never_t &&) = default;
+    never_t &operator=(const never_t &) = default;
+    never_t &operator=(never_t &&) = default;
+
+    ~never_t() = default;
+
+    template <typename T>
+    [[ noreturn ]]
+    operator T() const {
+        throw std::logic_error{"Shouldn't be reachable"};
+    }
+};
+#pragma endregion never_t
 
 
 }  // namespace bondrewd::util
