@@ -6,10 +6,45 @@
 # TODO: Force parentheses around some operators (like bitwise)?
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Explicitly specify ast::nodes::?
-# TODO: Handle `maybe`s better?
 
 @subheader '''\
 #include <string>
+'''
+
+@extras '''\
+std::string _concat_strings(const std::vector<lex::Token> &strings) const {
+    if (strings.empty()) {
+        return "";
+    }
+
+    std::string result{};
+    std::string_view quotes = "";
+    bool first = true;
+
+    for (auto &s: strings) {
+        if (first) {
+            quotes = s.get_string().quotes;
+            first = false;
+        }
+
+        result += s.get_string().value;
+        if (s.get_string().quotes != quotes) {
+            // TODO: Custom error type!
+            throw std::runtime_error("String literals must have the same quotes");
+        }
+    }
+
+    return result;
+}
+
+template <typename T>
+ast::maybe<T> _opt2maybe(std::optional<ast::field<T>> opt) {
+    if (opt) {
+        return std::move(*opt);
+    } else {
+        return nullptr;
+    }
+}
 '''
 
 # This means all ast::* types are automatically wrapped into ast::field<>
@@ -50,7 +85,7 @@ assign_op[ast::assign_op]:
     | '^='   { ast::AsgnBitXor() }
 
 var_def_stmt[ast::stmt]:
-    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), t ? *t : nullptr, v ? *v : nullptr, true, bool(c)) }
+    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true, bool(c)) }
 
 # TODO: Decide on the body contents
 impl_stmt[ast::stmt]:
@@ -212,7 +247,7 @@ type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
 func_def[ast::expr]:
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), t ? *t : nullptr, std::move(b)) }
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
 # TODO
 func_args_def[ast::arg_defs]:

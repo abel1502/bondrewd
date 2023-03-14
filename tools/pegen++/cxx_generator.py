@@ -732,10 +732,18 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             
             return
         
+        assert "trailer" not in self.grammar.metas, "Trailer ignored when start rule is present"
+        
         self.print("auto parse() {")
         with self.indent():
             self.print("return parse_start_rule();")
         self.print("}")
+
+    @jinja_tpl_generator
+    def gen_extras(self) -> None:
+        extras: str = self.grammar.metas.get("extras", "")
+        
+        self.print(extras)
     
     @jinja_tpl_generator
     def gen_rule_parsers(self) -> None:

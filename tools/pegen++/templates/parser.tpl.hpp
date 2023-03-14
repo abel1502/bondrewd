@@ -100,6 +100,12 @@ protected:
     }
     #pragma endregion Helpers
 
+    #pragma region Extras
+    {% filter indent(4) -%}
+    {{ generator.gen_extras() }}
+    {%- endfilter %}
+    #pragma endregion Extras
+
     #pragma region Caching
     template <RuleType rule_type>
     constexpr std::map<state_t, rule_result_t<rule_type>> &_get_cache() {
