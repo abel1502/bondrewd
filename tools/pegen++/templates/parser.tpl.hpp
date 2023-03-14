@@ -46,8 +46,8 @@ protected:
 
     #pragma region Fields
     {%- for rulename, rule in generator.all_rules_sorted %}
-    {%- if generator.should_cache(rule) %}
-    std::map<state_t, {{ rule.type }}> cache_{{ rulename }}{};
+    {%- if generator.should_cache(rule, include_left_recursive=True) %}
+    std::map<state_t, std::optional<{{ rule.type }}>> cache_{{ rulename }}{};
     {%- endif %}
     {%- endfor %}
     #pragma endregion Fields
@@ -59,17 +59,8 @@ protected:
         {%- endfor %}
     };
 
-    static constexpr bool is_left_recursive(RuleType rule) {
-        switch (rule) {
-            {%- for rulename, rule in generator.all_rules_sorted if rule.left_recursive %}
-            case RuleType::{{ rulename }}:  return true;
-            {%- endfor %}
-            default:  return false;
-        }
-    }
-
     template <RuleType R>
-    using rule_result_t = std::tuple_element_t<
+    using rule_raw_result_t = std::tuple_element_t<
         (unsigned)R,
         std::tuple<
             {%- for rulename, rule in generator.all_rules_sorted %}
@@ -77,6 +68,9 @@ protected:
             {%- endfor %}
         >
     >;
+
+    template <RuleType R>
+    using rule_result_t = std::optional<rule_raw_result_t<R>>;
     #pragma endregion Rule types
 
     #pragma region Helpers
@@ -106,45 +100,10 @@ protected:
     }
     #pragma endregion Helpers
 
-    #pragma region CacheHelper
-    #if 0
-    template <RuleType rule_type>
-    class CacheHelper {
-    public:
-        using result_t = std::optional<rule_result_t<rule_type>>;
-
-        CacheHelper(Parser &parser, state_t state, result_t &result) :
-            parser{parser}, state{std::move(state)}, rule_type{rule_type}, result{result} {}
-        
-        CacheHelper(const CacheHelper &) = delete;
-        CacheHelper(CacheHelper &&) = delete;
-        CacheHelper &operator=(const CacheHelper &) = delete;
-        CacheHelper &operator=(CacheHelper &&) = delete;
-
-        void accept() {
-            is_success = true;
-        }
-
-        ~CacheHelper() {
-            if (is_success) {
-                parser.store_cached<rule_type>(state, result);
-            }
-        }
-        
-    private:
-        Parser &parser;
-        state_t state;
-        result_t &result;
-        bool is_success = false;
-    
-    };
-    #endif
-    #pragma endregion CacheHelper
-
     #pragma region Caching
     template <RuleType rule_type>
     constexpr std::map<state_t, rule_result_t<rule_type>> &_get_cache() {
-        {%- for rulename, rule in generator.all_rules_sorted if generator.should_cache(rule) %}
+        {%- for rulename, rule in generator.all_rules_sorted if generator.should_cache(rule, include_left_recursive=True) %}
         if constexpr (rule_type == RuleType::{{ rulename }}) {
             return cache_{{ rulename }};
         } else {% endfor %} {
@@ -155,7 +114,7 @@ protected:
     }
 
     template <RuleType rule_type>
-    std::optional<rule_result_t<rule_type>> get_cached(state_t state) {
+    rule_result_t<rule_type> get_cached(state_t state) {
         auto &cache = _get_cache<rule_type>();
 
         auto it = cache.find(state);
@@ -169,7 +128,7 @@ protected:
 
     /// Updates, if present
     template <RuleType rule_type>
-    void store_cached(state_t state, std::optional<rule_result_t<rule_type>> result) {
+    void store_cached(state_t state, rule_result_t<rule_type> result) {
         auto &cache = _get_cache<rule_type>();
 
         cache.emplace(state, std::move(result));

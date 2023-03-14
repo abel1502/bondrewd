@@ -103,7 +103,7 @@ using sequence = util::arena_ptr<std::vector<T>, &ast_arena>;
 
 template <typename T, typename ... As>
 sequence<T> make_sequence(As &&... args) {
-    return util::make_arena_ptr<std::vector<T>, &ast_arena>{std::forward<As>(args)...};
+    return util::make_arena_ptr<std::vector<T>, &ast_arena>(std::forward<As>(args)...);
 }
 #pragma endregion sequence
 

@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <iostream>
+#include <optional>
 
 
 namespace bondrewd::lex {
@@ -126,44 +127,44 @@ public:
         _ExpectProxy &operator=(const _ExpectProxy &) = default;
         _ExpectProxy &operator=(_ExpectProxy &&) = default;
 
-        Token *token(TokenType type) {
+        std::optional<Token> token(TokenType type) {
             lexer->ensure_next();
 
             Token *result = &lexer->cur();
             if (result->get_type() != type) {
-                return nullptr;
+                return std::nullopt;
             }
 
             lexer->advance();
 
-            return result;
+            return *result;
         }
 
-        Token *keyword(HardKeyword keyword) {
-            Token *result = token(TokenType::keyword);
+        std::optional<Token> keyword(HardKeyword keyword) {
+            std::optional<Token> result = token(TokenType::keyword);
 
-            if (result == nullptr || result->get_keyword().value != keyword) {
-                return nullptr;
+            if (!result || result->get_keyword().value != keyword) {
+                return std::nullopt;
             }
 
             return result;
         }
 
-        Token *punct(Punct punct) {
-            Token *result = token(TokenType::punct);
+        std::optional<Token> punct(Punct punct) {
+            std::optional<Token> result = token(TokenType::punct);
 
-            if (result == nullptr || result->get_punct().value != punct) {
-                return nullptr;
+            if (!result || result->get_punct().value != punct) {
+                return std::nullopt;
             }
 
             return result;
         }
 
-        Token *soft_keyword(const std::string_view &keyword) {
-            Token *result = token(TokenType::name);
+        std::optional<Token> soft_keyword(const std::string_view &keyword) {
+            std::optional<Token> result = token(TokenType::name);
 
-            if (result == nullptr || result->get_name().value != keyword) {
-                return nullptr;
+            if (!result || result->get_name().value != keyword) {
+                return std::nullopt;
             }
 
             return result;

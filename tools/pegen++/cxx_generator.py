@@ -745,8 +745,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.print("// Left-recursive")
             self.visit(rule)
 
-    def should_cache(self, node: Rule) -> bool:
-        return node.memo and not node.left_recursive
+    def should_cache(self, node: Rule, include_left_recursive: bool = False) -> bool:
+        return (node.memo and not node.left_recursive) or \
+            (node.left_recursive and include_left_recursive and node.leader)
     
     @contextmanager
     def push_cur_rule(self, rule: Rule) -> typing.Generator[None, None, None]:
@@ -789,12 +790,12 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.print("auto _state = tell();")
             self.print("auto _res_state = tell();")
             
-            self.print(f"std::optional<{result_type}> _res = std::nullopt;")
-            self.print(f"if ((_res = get_cached<RuleType::{node.name}>(_state))) {{")
+            self.print(f"if (auto _cached = get_cached<RuleType::{node.name}>(_state)) {{")
             with self.indent():
-                self.add_return("_res", ignore_cache=True)
+                self.add_return("*_cached", ignore_cache=True)
             self.print("}")
             
+            self.print(f"std::optional<{result_type}> _res = std::nullopt;")
             self.print("while (true) {")
             with self.indent():
                 self.print(f"store_cached<RuleType::{node.name}>(_state, _res);")
@@ -818,16 +819,17 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         result_type: str = node.type
 
         self.add_level()
-        self.print(f"std::optional<{result_type}> _res = std::nullopt;")
         
         if self.should_cache(node):
-            self.print(f"if (_res = get_cached<RuleType::{node.name}>(_state)) {{")
+            self.print(f"if (auto _cached = get_cached<RuleType::{node.name}>(_state)) {{")
             with self.indent():
-                self.add_return("_res", ignore_cache=True)
+                self.add_return("*_cached", ignore_cache=True)
             self.print("}")
         
         self.print("const auto _state = tell();")
         self.print("(void)_state;")
+        # TODO: Get rid of?
+        self.print(f"std::optional<{result_type}> _res = std::nullopt;")
         
         # TODO: Pass the type as well?
         self.visit(
@@ -847,6 +849,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         result_type: str = node.type
         returns_seq: bool = result_type.startswith("ast::sequence")
         item_type: str = self._unwrap_template(result_type, ("ast::sequence", "std::vector"))
+        subrule_type: str = f"ast::field<{item_type}>" if returns_seq else item_type
         
         assert node.name, "Unexpected unnamed loop rule!"
         
@@ -855,14 +858,13 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self.print("auto _state = tell();")
 
         if self.should_cache(node):
-            self.print(f"std::optional<{result_type}> _cache_res = std::nullopt;")
-            self.print(f"if (_res = get_cached(_state, RuleType::{node.name})) {{")
+            self.print(f"if (auto _cached = get_cached(_state, RuleType::{node.name})) {{")
             with self.indent():
-                self.add_return("_res", ignore_cache=True)
+                self.add_return("*_cached", ignore_cache=True)
             self.print("}")
         
-        self.print(f"std::optional<{item_type}> _res = std::nullopt;")
-        self.print(f"std::vector<{item_type}> _children{{}};")
+        self.print(f"std::optional<{subrule_type}> _res = std::nullopt;")
+        self.print(f"std::vector<{subrule_type}> _children{{}};")
         self.visit(
             rhs,
             is_loop=True,
@@ -877,7 +879,11 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             self.print("}")
         
         if returns_seq:
-            self.print(f"auto _seq = ast::make_sequence<{item_type}>(std::move(_children));")
+            self.print(f"auto _seq = ast::make_sequence<{item_type}>();")
+            self.print(f"for (auto &_child : _children) {{")
+            with self.indent():
+                self.print("_seq->push_back(std::move(*_child));")
+            self.print("}")
             self.add_return("_seq")
         else:
             self.add_return("_children")
@@ -930,7 +936,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 # Loops are never gathers
                 self.emit_action(node, skip=self.skip_actions, is_gather=False)
 
-                self.print("_children.push_back(*_res);")
+                self.print("_children.push_back(std::move(*_res));")
                 self.print("_state = tell();")
                 self.print("continue;")
             self.print("break;")
@@ -954,7 +960,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 if call.force_true:
                     line += f" auto {val_var} = {opt_var};"
                 else:
-                    line += f" auto {val_var} = *{opt_var};"
+                    line += f" auto {val_var} = std::move(*{opt_var});"
             elif call.force_true:
                 line += f" (void){call.assigned_variable};"
             
