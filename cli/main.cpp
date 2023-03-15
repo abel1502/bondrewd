@@ -45,6 +45,8 @@ auto parse_args(int argc, char **argv) {
 
 
 void run_test() {
+    ++bondrewd::util::log_verbosity;
+
     // test_funcs::lexer();
     test_funcs::parser();
 

@@ -79,7 +79,7 @@ void _dbg(bool isError, int level, const char* func_name, int line_no, const cha
 #pragma endregion logging
 
 
-#pragma region is_specialization
+#pragma region specialization_of
 template <typename, template<typename ...> typename>
 constexpr bool _is_specialization = false;
 
@@ -88,8 +88,8 @@ constexpr bool _is_specialization<T<Args...>, T> = true;
 
 
 template <typename T, template<typename ...> typename Tpl>
-concept specialization_of = _is_specialization<T, Tpl>;
-#pragma endregion is_specialization
+concept specialization_of = _is_specialization<std::decay_t<T>, Tpl>;
+#pragma endregion specialization_of
 
 
 #pragma region variant_cast

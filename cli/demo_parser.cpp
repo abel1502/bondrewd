@@ -20,10 +20,10 @@ struct DumpVisitor {
 
     DumpVisitor() = default;
 
-    DumpVisitor(const DumpVisitor&) = delete;
-    DumpVisitor(DumpVisitor&&) = default;
-    DumpVisitor& operator=(const DumpVisitor&) = delete;
-    DumpVisitor& operator=(DumpVisitor&&) = default;
+    DumpVisitor(const DumpVisitor &) = delete;
+    DumpVisitor(DumpVisitor &&) = default;
+    DumpVisitor& operator=(const DumpVisitor &) = delete;
+    DumpVisitor& operator=(DumpVisitor &&) = default;
 
     std::ostream& indent() const {
         for (unsigned i = 0; i < depth; ++i) {
@@ -32,13 +32,13 @@ struct DumpVisitor {
         return std::cout;
     }
 
-    void operator()(ast::abstract_ast_node auto& node) {
+    void operator()(ast::abstract_ast_node auto &node) {
         indent() << typeid(node).name();
-        visit(*this, node);
+        visit<void>(*this, node);
         indent() << "\n";
     }
 
-    void operator()(ast::concrete_ast_node auto& node) {
+    void operator()(ast::concrete_ast_node auto &node) {
         indent() << "(" << typeid(node).name() << ") {\n";
         ++depth;
         visit_recursive(*this, node);
@@ -72,7 +72,7 @@ void parser() {
 
     std::cout << "Parsed successfully.\n";
 
-    const ast::cartridge &cartridge = **result;
+    ast::cartridge &cartridge = **result;
 
     DumpVisitor()(cartridge);
 }

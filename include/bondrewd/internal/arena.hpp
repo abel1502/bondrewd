@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <concepts>
+#include <type_traits>
 #include <new>
 #include <vector>
 #include <stdexcept>
@@ -76,9 +77,16 @@ protected:
 
         #pragma region Service constructors
         Allocation(const Allocation &) = delete;
-        Allocation(Allocation &&) = default;
+        Allocation(Allocation &&other) : ptr{nullptr}, deleter{nullptr}, refs{0} {
+            *this = std::move(other);
+        }
         Allocation &operator=(const Allocation &) = delete;
-        Allocation &operator=(Allocation &&) = default;
+        Allocation &operator=(Allocation &&other) {
+            std::swap(ptr, other.ptr);
+            std::swap(deleter, other.deleter);
+            std::swap(refs, other.refs);
+            return *this;
+        }
         #pragma endregion Service constructors
 
         #pragma region Destructor

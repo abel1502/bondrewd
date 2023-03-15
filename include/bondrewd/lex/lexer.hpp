@@ -99,7 +99,7 @@ public:
             }
 
             tokens[i].dump(stream);
-            
+
             if (i == index) {
                 stream << " *";
             }
@@ -121,7 +121,7 @@ public:
     public:
         _ExpectProxy(Lexer *lexer_) :
             lexer{lexer_} {}
-        
+
         _ExpectProxy(const _ExpectProxy &) = default;
         _ExpectProxy(_ExpectProxy &&) = default;
         _ExpectProxy &operator=(const _ExpectProxy &) = default;
@@ -130,14 +130,14 @@ public:
         std::optional<Token> token(TokenType type) {
             lexer->ensure_next();
 
-            Token *result = &lexer->cur();
-            if (result->get_type() != type) {
+            Token result = lexer->cur();
+            if (result.get_type() != type) {
                 return std::nullopt;
             }
 
             lexer->advance();
 
-            return *result;
+            return result;
         }
 
         std::optional<Token> keyword(HardKeyword keyword) {
@@ -181,7 +181,7 @@ public:
             _ExpectProxy(lexer_),
             state{lexer->tell()},
             positive{positive} {}
-        
+
         _LookaheadProxy(const _LookaheadProxy &) = default;
         _LookaheadProxy(_LookaheadProxy &&) = default;
         _LookaheadProxy &operator=(const _LookaheadProxy &) = default;
@@ -195,25 +195,25 @@ public:
             bool NAME(ARG_TYPE arg) { \
                 return ((bool)_ExpectProxy::NAME(arg)) == positive; \
             }
-        
+
         WRAP_(token, TokenType);
         WRAP_(keyword, HardKeyword);
         WRAP_(punct, Punct);
         WRAP_(soft_keyword, std::string_view);
 
         #undef WRAP_
-    
+
     protected:
         Lexer::state_t state;
         bool positive;
 
     };
     #pragma endregion Proxies
-    
+
     // TODO: Wrappers for these on the parser level.
     //       Strictly speaking, these are only the atomic versions
     //       of the lookahead/expect methods.
-    
+
     /**
      * Usage examples:
      *  - `.expect().token(TokenType::keyword)`
@@ -231,12 +231,12 @@ public:
      *  - `.lookahead(false).keyword(HardKeyword::if)`
      *  - `.lookahead(true).punct(Punct::semicolon)`
      *  - `.lookahead(false).soft_keyword("aboba")`
-     * 
+     *
      * Can also be used as a reset-guard:
      * ```
      * {
      *     auto guard = lexer.lookahead(true);  // or false, doesn't matter
-     * 
+     *
      *     ...
      * }
      * ```
@@ -273,7 +273,7 @@ protected:
         }
     }
     #pragma endregion Pulling
-    
+
     #pragma region Reading
     Token &get_at(size_t pos) const {
         ensure_total(pos + 1);

@@ -633,6 +633,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     _varname_counter: int
     file: io.StringIO
     _cur_rule: Rule | None
+    _with_impls: bool
     
     def __init__(
         self,
@@ -649,6 +650,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self.debug = debug
         self.skip_actions = skip_actions
         self._cur_rule = None
+        self._with_impls = True
 
     def get_contents(self) -> str:
         result: str = self.file.getvalue()
@@ -679,18 +681,11 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         return new_var
     
     @contextmanager
-    def if_impl(self, with_braces: bool = False) -> typing.Generator[None, None, None]:
-        self.print("#ifdef BONDREWD_PARSER_IMPL")
-        if with_braces:
-            self.print("{")
-            with self.indent():
-                yield
-            self.print("}")
-        else:
+    def braced(self) -> typing.Generator[None, None, None]:
+        self.print("{")
+        with self.indent():
             yield
-        self.print("#else")
-        self.print(";")
-        self.print("#endif")
+        self.print("}")
 
     def generate(self, filename: str) -> None:
         raise NotImplementedError("Use prepare() and a jinja template instead")
@@ -746,12 +741,16 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self.print(extras)
     
     @jinja_tpl_generator
-    def gen_rule_parsers(self) -> None:
+    def gen_rule_parsers(self, *, with_impls: bool) -> None:
+        self._with_impls = with_impls
+        
         for rule in list(self.all_rules.values()):
             self.print()
             if rule.left_recursive:
                 self.print("// Left-recursive")
             self.visit(rule)
+        
+        self._with_impls = True
 
     def should_cache(self, node: Rule, include_left_recursive: bool = False) -> bool:
         return (node.memo and not node.left_recursive) or \
@@ -763,6 +762,14 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self._cur_rule = rule
         yield
         self._cur_rule = None
+    
+    @property
+    def _maybe_semicolon(self) -> str:
+        return ";" if not self._with_impls else ""
+    
+    @property
+    def _maybe_prefix(self) -> str:
+        return "Parser::" if self._with_impls else ""
     
     def visit_Rule(self, node: Rule) -> None:
         with self.push_cur_rule(node):
@@ -776,51 +783,55 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             if node.left_recursive and node.leader:
                 # self.print(f"std::optional<{node.type}> parse_raw_{node.name}_rule();")
                 pass
-
-            self.print(f"std::optional<{node.type}> parse_{node.name}_rule()")
+            
+            self.print(f"std::optional<{node.type}> {self._maybe_prefix}parse_{node.name}_rule(){self._maybe_semicolon}")
             
             if node.left_recursive and node.leader:
                 self._set_up_rule_caching(node)
-
-            with self.if_impl(with_braces=True):
+            
+            if not self._with_impls:
+                return
+            
+            with self.braced():
                 if is_loop:
                     self._handle_loop_rule_body(node, rhs)
                 else:
                     self._handle_default_rule_body(node, rhs)
     
     def _set_up_rule_caching(self, node: Rule) -> None:
-        with self.if_impl(with_braces=True):
-            assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
-            result_type: str = node.type
-            
-            self.add_level()
-            
-            self.print("auto _state = tell();")
-            self.print("auto _res_state = tell();")
-            
-            self.print(f"if (auto _cached = get_cached<RuleType::{node.name}>(_state)) {{")
-            with self.indent():
-                self.add_return("*_cached", ignore_cache=True)
-            self.print("}")
-            
-            self.print(f"std::optional<{result_type}> _res = std::nullopt;")
-            self.print("while (true) {")
-            with self.indent():
-                self.print(f"store_cached<RuleType::{node.name}>(_state, _res);")
-                self.print("seek(_state);")
-                self.print(f"auto _raw = parse_raw_{node.name}();")
-                self.print("if (!_raw || tell() <= _res_state) {")
+        if self._with_impls:
+            with self.braced():
+                assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"
+                result_type: str = node.type
+                
+                self.add_level()
+                
+                self.print("auto _state = tell();")
+                self.print("auto _res_state = tell();")
+                
+                self.print(f"if (auto _cached = get_cached<RuleType::{node.name}>(_state)) {{")
                 with self.indent():
-                    self.print("break;")
+                    self.add_return("*_cached", ignore_cache=True)
                 self.print("}")
-                self.print("_res = std::move(_raw);")
-                self.print("_res_state = tell();")
-            self.print("}")
-            
-            self.print("seek(_res_state);")
-            self.add_return("_res", ignore_cache=True)
+                
+                self.print(f"std::optional<{result_type}> _res = std::nullopt;")
+                self.print("while (true) {")
+                with self.indent():
+                    self.print(f"store_cached<RuleType::{node.name}>(_state, _res);")
+                    self.print("seek(_state);")
+                    self.print(f"auto _raw = parse_raw_{node.name}();")
+                    self.print("if (!_raw || tell() <= _res_state) {")
+                    with self.indent():
+                        self.print("break;")
+                    self.print("}")
+                    self.print("_res = std::move(_raw);")
+                    self.print("_res_state = tell();")
+                self.print("}")
+                
+                self.print("seek(_res_state);")
+                self.add_return("_res", ignore_cache=True)
         
-        self.print(f"std::optional<{node.type}> parse_raw_{node.name}()")
+        self.print(f"std::optional<{node.type}> {self._maybe_prefix}parse_raw_{node.name}(){self._maybe_semicolon}")
         
     def _handle_default_rule_body(self, node: Rule, rhs: Rhs) -> None:
         assert node.type is not None, f"All rules must have specific types! (bad: {node!r})"

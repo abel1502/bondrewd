@@ -24,7 +24,7 @@ template<class ... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 #pragma region for_each
 template <typename T>
-void for_each(auto &func, T &&tuple) {
+void for_each(auto &&func, T &&tuple) {
     std::apply([&](auto &&... args) {
         (std::invoke(func, std::forward<decltype(args)>(args)), ...);
     }, std::forward<T>(tuple));
@@ -36,11 +36,16 @@ void for_each(auto &func, T &&tuple) {
 decltype(auto) visit(auto &&func, abstract_ast_node auto &&node) {
     return std::visit(std::forward<decltype(func)>(func), node.value);
 }
+
+template<typename R>
+R visit(auto &&func, abstract_ast_node auto &&node) {
+    return std::visit<R>(std::forward<decltype(func)>(func), node.value);
+}
 #pragma endregion visit
 
 
 #pragma region visit_recursive
-decltype(auto) visit_recursive(auto &func, concrete_ast_node auto &&node) {
+decltype(auto) visit_recursive(auto &&func, concrete_ast_node auto &&node) {
     for_each([&](auto &child) {
         using child_type = decltype(child);
 

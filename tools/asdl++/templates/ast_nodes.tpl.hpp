@@ -12,7 +12,7 @@ namespace bondrewd::ast::nodes {
 {%- if asdl_type is instanceof asdl.Product or asdl_type is instanceof asdl.Constructor %}
 {#- Product = concrete struct #}
 {#- Constructor = Product without attributes #}
-class {{ name }}{% if asdl_type is instanceof asdl.Constructor %} : _ConcreteASTNode{% endif %} {
+class {{ name }}{% if asdl_type is instanceof asdl.Constructor %} : public _ConcreteASTNode{% endif %} {
 public:
     #pragma region Fields
     {%- filter indent(width=4) %}
@@ -39,6 +39,19 @@ public:
      * Note that the tuple may include sequences (std::vector) and optional fields (null unique_ptr's).
      */
     auto get_fields_tuple() {
+        return std::tie(
+            {%- for field in asdl_type.fields %}
+            {{- field.name }}
+            {%- if not loop.last %}, {% endif %}
+            {%- endfor -%}
+        );
+    }
+
+    /**
+     * Returns a tuple of references to all fields.
+     * Note that the tuple may include sequences (std::vector) and optional fields (null unique_ptr's).
+     */
+    auto get_fields_tuple() const {
         return std::tie(
             {%- for field in asdl_type.fields %}
             {{- field.name }}

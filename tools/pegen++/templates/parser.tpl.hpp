@@ -143,7 +143,7 @@ protected:
 
     #pragma region Rule parsers
     {% filter indent(4) -%}
-    {{ generator.gen_rule_parsers() }}
+    {{ generator.gen_rule_parsers(with_impls=False) }}
     {%- endfilter %}
     #pragma endregion Rule parsers
 
