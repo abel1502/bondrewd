@@ -46,7 +46,7 @@ module Bondrewd {
 
     binary_op = Add | Sub | Mul | Div | Mod | Pow | LShift | RShift | BitOr | BitXor | BitAnd | BidirCmp
 
-    unary_op = BitInv | Not | UAdd | USub
+    unary_op = BitInv | Not | UAdd | USub | URef | UStar
 
     cmp_op = Eq | NotEq | Lt | LtE | Gt | GtE | In | NotIn
 

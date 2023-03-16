@@ -12,7 +12,7 @@ namespace bondrewd::ast::nodes {
 {%- if asdl_type is instanceof asdl.Product or asdl_type is instanceof asdl.Constructor %}
 {#- Product = concrete struct #}
 {#- Constructor = Product without attributes #}
-class {{ name }} : public _ConcreteASTNode {
+class {{ name }}{% if asdl_type is instanceof asdl.Constructor %} : public _ConcreteASTNode{% endif %} {
 public:
     #pragma region Fields
     {%- filter indent(width=4) %}
