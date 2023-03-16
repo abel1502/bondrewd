@@ -48,10 +48,32 @@ give a general idea of the direction the language will evolve in.
     string-keyed mapping. Coupled with some thoughts on traits, this gave me an
     idea to generalize namespaces: a key can be any (`ctime`) object. I'm
     considering two possible syntaxes for this: either `a::(74)` or 
-    `a::for 74`. (Note that this isn't about `.` vs `::` - I intend to have both
-    with slightly different meanings). The first one probably would be more
+    `a::for 74`. (Note that this isn't about `.` vs `::` --- I intend to have
+    both with slightly different meanings). The first one probably would be more
     clear (for example, what would `a::for b::c` mean? Introducing new
-    unapparent precedence rules goes against my design intentions).
+    unapparent precedence rules goes against my design intentions). Normal
+    attribute access would then be equivalent to `a::("attr")` or
+    `a::for "attr"`. Come to think of it, a hybrid syntax might be a good idea:
+    `a::(for 74)`.
+    
+    It is important to note that both objects play a part in generalized
+    attribute resolution (which should be reflected in the attribute access
+    override mechanism). Probably the left-hand side object would be queried
+    first, and if it doesn't provide the attribute, the right-hand side object
+    would be queried (in a distinct way, though --- I don't want attribute
+    access to be symmetric by any means). This way, for example, the
+    'trait-for-type' namespace could be expressed as `Foo::(for Barable)`. I'm
+    hoping with this and a few other changes, I could even make traits a library
+    feature...
+ - **Generalized types**. It's desirable to be able to specify, for instance, a
+    trait as the constraint for an argument of a function, automatically
+    creating a template. However, at this point, it would require special
+    support from the compiler. An alternative I'm considering is to call structs
+    and builtin types something like "specific types", and to allow type
+    annotations to be "generalized types". A generalized type should be able to
+    tell is another type matches it or not (Still undecided about whether it
+    should only concern specific types, or also generalized ones). This is a
+    very raw idea though, I still have a lot to think about here.
  - **...**
 
 ## Code samples
