@@ -26,10 +26,10 @@
 /// CURRENTLY SUSPENDED
 /// These provide a mechanism for defining a class with all methods in a header, but
 /// still having them compiled in a single translation unit.
-/// 
+///
 /// To use them:
 ///  - put `JUST_DECLARE(class, MyClass)` instead of `class MyClass`
-///  - put `PROMISE_DEFINITION(class, MyClass)` somewhere in your header after 
+///  - put `PROMISE_DEFINITION(class, MyClass)` somewhere in your header after
 ///    the class declaration.
 ///  - put `DEFINE_DECLARED(class, MyClass)` in a translation unit. It will house
 ///    the actual definition of the class.

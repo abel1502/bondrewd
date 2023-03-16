@@ -52,6 +52,10 @@ public:
      * @throws LexicalError if the next token is invalid.
      */
     Token get_token();
+
+    const Scanner &get_scanner() const {
+        return scanner;
+    }
     #pragma endregion Interface
 
 protected:
@@ -105,7 +109,7 @@ protected:
     }
 
     unsigned evaluate_digit_checked(int c, unsigned base) {
-        return evaluate_digit_checked(c, base, scanner.get_loc());
+        return evaluate_digit_checked(c, base, scanner.tell());
     }
 
     unsigned evaluate_digit_checked(int c, unsigned base, const SrcLocation &loc) {

@@ -47,17 +47,22 @@ R visit(auto &&func, abstract_ast_node auto &&node) {
 #pragma region visit_recursive
 decltype(auto) visit_recursive(auto &&func, concrete_ast_node auto &&node) {
     for_each([&](auto &child) {
-        using child_type = decltype(child);
+        using child_type = std::decay_t<decltype(child)>;
 
-        if constexpr (util::specialization_of<child_type, sequence>) {
-            for (auto &child_item : child) {
+        // DBG("Visiting %s", typeid(child).name());
+
+        if constexpr (is_sequence<child_type>) {
+            // DBG("Sequence");
+            for (auto &child_item : *child) {
                 func(child_item);
             }
-        } else if constexpr (util::specialization_of<child_type, field> ||
-                             util::specialization_of<child_type, maybe>) {
+        } else if constexpr (is_field<child_type> || is_maybe<child_type>) {
+            // DBG("Field");
             if (child) {
-                func(child);
+                func(*child);
             }
+        } else {
+            // DBG("Skipping");
         }
     }, node.get_fields_tuple());
 }

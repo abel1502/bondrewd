@@ -24,7 +24,7 @@ Token Tokenizer::get_token() {
         }
     }
 
-    token = Token::endmarker(scanner.get_loc(), "");
+    token = Token::endmarker(scanner.tell(), "");
     return token;
 }
 
@@ -149,7 +149,7 @@ void Tokenizer::parse_number() {
         (base == 16 && (scanner.cur() == 'P' || scanner.cur() == 'p'))) {
         
         if (fraction_part.empty() && integral_part.empty()) {
-            error("Invalid floating point literal", start_pos.loc);
+            error("Invalid floating point literal", start_pos);
         }
 
         scanner.advance();
@@ -174,30 +174,30 @@ void Tokenizer::parse_number() {
     }
 
     if (is_integer && integral_part.empty()) {
-        error("Invalid integer literal", start_pos.loc);
+        error("Invalid integer literal", start_pos);
     }
 
     if (is_name_char(scanner.cur())) {
-        error(fmt::format("Garbage '{}' after number", (char)scanner.cur()), scanner.get_loc());
+        error(fmt::format("Garbage '{}' after number", (char)scanner.cur()), scanner.tell());
     }
 
     if (integral_part.size() >= MAX_NUMBER_LENGTH \
         || fraction_part.size() >= MAX_NUMBER_LENGTH \
         || exp_part.size() >= MAX_NUMBER_LENGTH) {
 
-        error("Integer literal too large", start_pos.loc);
+        error("Integer literal too large", start_pos);
     }
 
     if (is_integer) {
         token = Token::number(
-            extract_integer(integral_part, base, start_pos.loc),
-            start_pos.loc,
+            extract_integer(integral_part, base, start_pos),
+            start_pos,
             scanner.view_since(start_pos)
         );
     } else {
         token = Token::number(
-            extract_float(integral_part, fraction_part, exp_part, exp_sign, base, start_pos.loc),
-            start_pos.loc,
+            extract_float(integral_part, fraction_part, exp_part, exp_sign, base, start_pos),
+            start_pos,
             scanner.view_since(start_pos)
         );
     }
@@ -222,7 +222,7 @@ void Tokenizer::parse_name() {
     auto value = scanner.read_while<is_name_char>();
     assert(!value.empty());
 
-    token = Token::name(value, start_pos.loc, value);
+    token = Token::name(value, start_pos, value);
 }
 
 
@@ -236,7 +236,7 @@ bool Tokenizer::parse_other() {
 
     switch (verdict) {
     case MiscTrie::Verdict::none:
-        error(fmt::format("Unexpected character '{}'", (char)scanner.cur()), start_pos.loc);
+        error(fmt::format("Unexpected character '{}'", (char)scanner.cur()), start_pos);
 
     case MiscTrie::Verdict::string_quote:
         parse_string(quote);
@@ -251,7 +251,7 @@ bool Tokenizer::parse_other() {
         return false;
 
     case MiscTrie::Verdict::punct:
-        token = Token::punct(punct, start_pos.loc, scanner.view_since(start_pos));
+        token = Token::punct(punct, start_pos, scanner.view_since(start_pos));
         return true;
 
     NODEFAULT;
@@ -279,7 +279,7 @@ void Tokenizer::parse_string(std::string_view start_quote) {
         switch (verdict) {
         case StringTrie::Verdict::none: {
             if (scanner.at_eof()) {
-                error("Unterminated string", start_pos.loc);
+                error("Unterminated string", start_pos);
             }
 
             if (scanner.tell() == seg_start_pos) {
@@ -292,7 +292,7 @@ void Tokenizer::parse_string(std::string_view start_quote) {
 
         case StringTrie::Verdict::end_quote: {
             if (end_quote == start_quote) {
-                token = Token::string(value, start_quote, start_pos.loc, value);
+                token = Token::string(value, start_quote, start_pos, value);
                 return;
             }
 
@@ -308,7 +308,7 @@ void Tokenizer::parse_string(std::string_view start_quote) {
 
         case StringTrie::Verdict::newline: {
             if (!is_multiline) {
-                error("Unterminated string", start_pos.loc);
+                error("Unterminated string", start_pos);
             }
 
             value += '\n';
@@ -332,15 +332,15 @@ void Tokenizer::parse_string(std::string_view start_quote) {
                 scanner.advance();
 
                 // This automatically checks for invalid digits and EOF
-                unsigned hex_value = evaluate_digit_checked(digits[0], 16, seg_start_pos.loc) * 16 \
-                                    + evaluate_digit_checked(digits[1], 16, seg_start_pos.loc);
+                unsigned hex_value = evaluate_digit_checked(digits[0], 16, seg_start_pos) * 16 \
+                                    + evaluate_digit_checked(digits[1], 16, seg_start_pos);
                 assert(hex_value < 0x100);
 
                 value += (char)hex_value;
                 break;
             }
 
-            error("Invalid escape sequence", seg_start_pos.loc);
+            error("Invalid escape sequence", seg_start_pos);
         } break;
 
         NODEFAULT;
@@ -367,7 +367,7 @@ void Tokenizer::parse_block_comment() {
         switch (verdict) {
         case BlockCommentTrie::Verdict::none: {
             if (scanner.at_eof()) {
-                error("Unterminated block comment", start_pos.loc);
+                error("Unterminated block comment", start_pos);
             }
 
             scanner.advance();

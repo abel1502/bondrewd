@@ -195,6 +195,10 @@ protected:
 template <typename T, bondrewd::util::Arena *arena = &Arena::instance>
 class arena_ptr {
 public:
+    #pragma region Constants and typedefs
+    using element_type = T;
+    #pragma endregion Constants and typedefs
+
     #pragma region Constructors
     arena_ptr() : ptr{nullptr} {};
 
@@ -306,6 +310,12 @@ arena_ptr<T, arena> make_arena_ptr(Args &&... args) {
     return Arena::make_arena_ptr<T, arena, Allocator>(std::forward<Args>(args)...);
 }
 #pragma endregion make_arena_ptr
+
+
+#pragma region Concepts
+template <typename T, Arena *arena>
+concept arena_ptr_at = std::same_as<std::decay_t<T>, arena_ptr<typename T::element_type, arena>>;
+#pragma endregion Concepts
 
 
 }  // namespace bondrewd::util

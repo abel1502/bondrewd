@@ -21,33 +21,14 @@ class Scanner {
 public:
     #pragma region Constants and typedefs
     static constexpr int end_of_file = EOF;
-
-    struct state_t {
-        size_t buf_pos;
-        SrcLocation loc;
-
-        constexpr auto operator<=>(const state_t& other) const {
-            return buf_pos <=> other.buf_pos;
-        }
-
-        constexpr bool operator==(const state_t& other) const {
-            return buf_pos == other.buf_pos;
-        }
-
-        constexpr bool operator!=(const state_t& other) const = default;
-        constexpr bool operator<=(const state_t& other) const = default;
-        constexpr bool operator>=(const state_t& other) const = default;
-        constexpr bool operator<(const state_t& other) const = default;
-        constexpr bool operator>(const state_t& other) const = default;
-    };
     #pragma endregion Constants and typedefs
 
     #pragma region Constructors
     template <std::input_iterator I, std::sentinel_for<I> S>
     Scanner(I src, S end, std::string_view filename = "") :
-        buf{std::move(src), std::move(end)}, loc{filename, 0, 0} {
+        buf{std::move(src), std::move(end)}, loc{filename, 0, 0, 0} {
 
-        cached_char = get_at(buf_pos);
+        cached_char = get_at(loc.file_pos);
     }
     #pragma endregion Constructors
 
@@ -82,15 +63,15 @@ public:
     }
 
     int peek_next() const {
-        return get_at(buf_pos + 1);
+        return get_at(loc.file_pos + 1);
     }
 
     int peek_prev() const {
-        if (buf_pos == 0) {
+        if (loc.file_pos == 0) {
             return end_of_file;
         }
 
-        return get_at(buf_pos - 1);
+        return get_at(loc.file_pos - 1);
     }
 
     template <auto P>
@@ -125,18 +106,50 @@ public:
         return result;
     }
 
-    std::string_view view_since(const state_t &pos) const {
-        assert(pos.buf_pos <= buf.size());
+    std::string_view view_since(const SrcLocation &pos) const {
+        assert(pos.file_pos <= buf.size());
+        assert(pos.file_pos <= loc.file_pos);
 
-        return std::string_view(buf.begin() + pos.buf_pos, buf.begin() + buf_pos);
+        return std::string_view(buf.begin() + pos.file_pos, buf.begin() + loc.file_pos);
+    }
+
+    std::string_view view_line(const SrcLocation &pos) const {
+        assert(pos.file_pos <= buf.size());
+
+        constexpr auto is_newline = [](char c) { return c == '\n'; };
+
+        auto start = std::find_if(buf.rend() - pos.file_pos, buf.rend(), is_newline);
+        auto end = std::find_if(buf.begin() + pos.file_pos, buf.end(), is_newline);
+
+        return std::string_view(start.base(), end);
+    }
+
+    std::string_view view_context(const SrcLocation &pos, size_t context_size = 5) const {
+        assert(pos.file_pos <= buf.size());
+
+        constexpr auto is_newline = [](char c) { return c == '\n'; };
+
+        auto point = buf.begin() + pos.file_pos;
+
+        auto start = std::max(point - context_size, buf.begin());
+        auto end = std::min(point + context_size, buf.end());
+
+        if (auto start_nl = std::find_if(start, point, is_newline); start_nl != point) {
+            start = start_nl + 1;
+        }
+
+        if (auto end_nl = std::find_if(point, end, is_newline); end_nl != end) {
+            end = end_nl;
+        }
+
+        return std::string_view(start, end);
     }
     #pragma endregion Reading
 
     #pragma region Positioning
     void advance() {
         loc.advance(cur());
-        ++buf_pos;
-        cached_char = get_at(buf_pos);
+        cached_char = get_at(loc.file_pos);
     }
 
     void advance(size_t count) {
@@ -145,24 +158,17 @@ public:
         }
     }
 
-    state_t tell() const {
-        return {buf_pos, loc};
-    }
-
-    void seek(const state_t &pos) {
-        assert(pos.buf_pos <= buf.size());
-
-        buf_pos = pos.buf_pos;
-        loc = pos.loc;
-        cached_char = get_at(buf_pos);
-    }
-    #pragma endregion Positioning
-
-    #pragma region Location
-    const SrcLocation &get_loc() const {
+    SrcLocation tell() const {
         return loc;
     }
-    #pragma endregion Location
+
+    void seek(const SrcLocation &pos) {
+        assert(pos.file_pos <= buf.size());
+
+        loc = pos;
+        cached_char = get_at(loc.file_pos);
+    }
+    #pragma endregion Positioning
 
     #pragma region EOF checking
     bool at_eof() const {
@@ -177,7 +183,6 @@ public:
 protected:
     #pragma region Fields
     std::vector<char> buf{};
-    size_t buf_pos{0};
     SrcLocation loc;
     int cached_char{end_of_file};
     #pragma endregion Fields
@@ -192,7 +197,7 @@ protected:
     }
 
     auto get_cur_iter() const {
-        return buf.begin() + buf_pos;
+        return buf.begin() + loc.file_pos;
     }
     #pragma endregion Reading
 

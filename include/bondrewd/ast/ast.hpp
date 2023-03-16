@@ -84,6 +84,16 @@ concept abstract_ast_node = std::derived_from<std::decay_t<T>, _AbstractASTNode>
 
 template <typename T>
 concept concrete_ast_node = std::derived_from<std::decay_t<T>, _ConcreteASTNode>;
+
+template <typename T>
+concept is_sequence = util::arena_ptr_at<T, &ast_arena>
+    && util::specialization_of<typename T::element_type, std::vector>;
+
+template <typename T>
+concept is_field = util::arena_ptr_at<T, &ast_arena> && !is_sequence<T>;
+
+template <typename T>
+concept is_maybe = is_field<T>;
 #pragma endregion Concepts
 
 

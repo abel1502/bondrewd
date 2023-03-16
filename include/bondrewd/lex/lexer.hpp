@@ -246,6 +246,16 @@ public:
     }
     #pragma endregion Expecting
 
+    #pragma region Error reporting
+    SrcLocation error_location() const {
+        return cur().get_location();
+    }
+
+    const Scanner &get_scanner() const {
+        return tokenizer.get_scanner();
+    }
+    #pragma endregion Error reporting
+
 protected:
     #pragma region Fields
     mutable Tokenizer tokenizer;
