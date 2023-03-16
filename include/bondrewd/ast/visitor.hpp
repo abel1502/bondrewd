@@ -53,13 +53,17 @@ decltype(auto) visit_recursive(auto &&func, concrete_ast_node auto &&node) {
 
         if constexpr (is_sequence<child_type>) {
             // DBG("Sequence");
-            for (auto &child_item : *child) {
-                func(child_item);
+            if constexpr (std::invocable<decltype(func), typename child_type::element_type::value_type &>) {
+                for (auto& child_item : *child) {
+                    func(child_item);
+                }
             }
         } else if constexpr (is_field<child_type> || is_maybe<child_type>) {
             // DBG("Field");
-            if (child) {
-                func(*child);
+            if constexpr (std::invocable<decltype(func), typename child_type::element_type &>) {
+                if (child) {
+                    func(*child);
+                }
             }
         } else {
             // DBG("Skipping");
