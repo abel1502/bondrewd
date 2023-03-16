@@ -6,9 +6,7 @@ namespace bondrewd::lex {
 
 Token Tokenizer::get_token() {
     // Loop needed because of how comments are handled
-    while (scanner) {
-        scanner.skip_space();
-
+    while ((void)scanner.skip_space(), scanner) {
         if (is_digit(scanner.cur()) || (scanner.cur() == '.' && is_digit(scanner.peek_next()))) {
             parse_number();
             return token;

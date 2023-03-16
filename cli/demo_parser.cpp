@@ -35,11 +35,10 @@ struct DumpVisitor {
     void operator()(ast::abstract_ast_node auto &node) {
         indent() << typeid(node).name();
         visit<void>(*this, node);
-        indent() << "\n";
     }
 
     void operator()(ast::concrete_ast_node auto &node) {
-        indent() << "(" << typeid(node).name() << ") {\n";
+        std::cout << " (" << typeid(node).name() << ") {\n";
         ++depth;
         visit_recursive(*this, node);
         --depth;

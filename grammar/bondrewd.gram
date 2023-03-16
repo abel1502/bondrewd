@@ -6,6 +6,7 @@
 # TODO: Force parentheses around some operators (like bitwise)?
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Explicitly specify ast::nodes::?
+# TODO: Empty rules cause issues with how left-recursion is handled. Fix it!
 
 @subheader '''\
 #include <string>
@@ -61,7 +62,7 @@ cartridge_header[std::string]:
 #endregion cartridge
 
 #region stmt
-stmt[ast::stmt]:
+stmt[ast::stmt] (memo):
     | var_def_stmt
     | impl_stmt
     | assign_stmt
@@ -97,7 +98,7 @@ expr_stmt[ast::stmt]:
     | a=expr ';'  { ast::Expr(std::move(a)) }
 
 # TODO: Support constants!
-expr[ast::expr]:
+expr[ast::expr] (memo):
     | func_def
     # | class_def
     # | if_expr
@@ -113,15 +114,15 @@ expr_or_unit[ast::expr]:
 
 #region operators
 #region logical
-disjunction_expr[ast::expr]:
+disjunction_expr[ast::expr] (memo):
     | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or(), ast::make_sequence<ast::expr>()) }
     | conjunction_expr
 
-conjunction_expr[ast::expr]:
+conjunction_expr[ast::expr] (memo):
     | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And(), ast::make_sequence<ast::expr>()) }
     | inversion_expr
 
-inversion_expr[ast::expr]:
+inversion_expr[ast::expr] (memo):
     | 'not' a=inversion_expr  { ast::UnOp(ast::Not(), std::move(a)) }
     | comparison_expr
 #endregion logical
@@ -187,10 +188,12 @@ term_expr[ast::expr]:
 #endregion arithmetic
 
 #region unary
-factor_expr[ast::expr]:
+factor_expr[ast::expr] (memo):
     | '+' a=factor_expr  { ast::UnOp(ast::UAdd(), std::move(a)) }
     | '-' a=factor_expr  { ast::UnOp(ast::USub(), std::move(a)) }
     | '~' a=factor_expr  { ast::UnOp(ast::BitInv(), std::move(a)) }
+    | '&' a=factor_expr  { ast::UnOp(ast::URef(), std::move(a)) }
+    | '*' a=factor_expr  { ast::UnOp(ast::UStar(), std::move(a)) }
     | power_expr
 #endregion unary
 
@@ -218,14 +221,14 @@ atom_expr[ast::expr]:
     | block_expr
 
 # TODO: Actually implement
-call_args[ast::call_args]:
+call_args[ast::call_args] (memo):
     | { ast::call_args(ast::make_sequence<ast::call_arg>(), nullptr, nullptr) }
 
 name[std::string]:
     | a=NAME  { a.get_name().value }
 
 # TODO: _concat_strings!
-strings[std::string]:
+strings[std::string] (memo):
     | a=STRING+  { _concat_strings(a) }
 
 group_expr[ast::expr]:
@@ -239,14 +242,14 @@ array_expr[ast::expr]:
     | '[' ']'  { ast::Array(ast::make_sequence<ast::expr>()) }
     | '[' a=','.expr+ ','? ']'  { ast::Array(std::move(a)) }
 
-block_expr[ast::expr]:
+block_expr[ast::expr] (memo):
     | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
 
 type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
 func_def[ast::expr]:  # TODO: Allow any expr!
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=block_expr ';'  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=block_expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
 # TODO
 func_args_def[ast::arg_defs]:
@@ -254,7 +257,7 @@ func_args_def[ast::arg_defs]:
 
 # TODO
 # class_def[ast::expr]:
-#     | c='ctime'? 'class' n=name '(' a=func_args_def ')' ';'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
+#     | c='ctime'? 'class' n=name '(' a=func_args_def ')'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
 #endregion expr
 
 # TODO: Finish!

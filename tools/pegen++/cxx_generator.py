@@ -17,6 +17,7 @@ from textwrap import dedent
 import functools
 import io
 from ast import literal_eval
+import warnings
 
 from pegen import grammar
 from pegen.grammar import (
@@ -673,7 +674,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         assert not ret_val.startswith("std::move"), "Don't use explicit std::move in return statements"
         self.remove_level()
         if not ignore_cache and self.should_cache(self._cur_rule):
-            self.print(f"store_cached(_state, RuleType::{self._cur_rule.name}, {ret_val});")
+            self.print(f"store_cached<RuleType::{self._cur_rule.name}>(_state, {ret_val});")
         # if implicitly_move:
         #     ret_val = f"std::move({ret_val})"
         self.print(f"return {ret_val};")
@@ -752,6 +753,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         self._with_impls = True
 
     def should_cache(self, node: Rule, include_left_recursive: bool = False) -> bool:
+        if node.left_recursive and node.memo:
+            warnings.warn(f"Left-recursive node {node.name} shouldn't be explicitly memoized")
+            node.memo = False
+        
         return (node.memo and not node.left_recursive) or \
             (node.left_recursive and include_left_recursive and node.leader)
     
@@ -814,20 +819,23 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 self.print("}")
                 
                 self.print(f"std::optional<{result_type}> _res = std::nullopt;")
+                self.print(f"bool _first = true;")
                 self.print("while (true) {")
                 with self.indent():
                     self.print(f"store_cached<RuleType::{node.name}>(_state, _res);")
                     self.print("seek(_state);")
                     self.print(f"auto _raw = parse_raw_{node.name}();")
-                    self.print("if (!_raw || tell() <= _res_state) {")
+                    self.print("if (!_raw || (tell() <= _res_state && !_first)) {")
                     with self.indent():
                         self.print("break;")
                     self.print("}")
+                    self.print("_first = false;")
                     self.print("_res = std::move(_raw);")
                     self.print("_res_state = tell();")
                 self.print("}")
                 
                 self.print("seek(_res_state);")
+                # self.print(f"store_cached<RuleType::{node.name}>(_state, _res);")
                 self.add_return("_res", ignore_cache=True)
         
         self.print(f"std::optional<{node.type}> {self._maybe_prefix}parse_raw_{node.name}(){self._maybe_semicolon}")
@@ -838,14 +846,15 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
 
         self.add_level()
         
+        self.print("const auto _state = tell();")
+        self.print("(void)_state;")
+        
         if self.should_cache(node):
             self.print(f"if (auto _cached = get_cached<RuleType::{node.name}>(_state)) {{")
             with self.indent():
                 self.add_return("*_cached", ignore_cache=True)
             self.print("}")
         
-        self.print("const auto _state = tell();")
-        self.print("(void)_state;")
         # TODO: Get rid of?
         self.print(f"std::optional<{result_type}> _res = std::nullopt;")
         

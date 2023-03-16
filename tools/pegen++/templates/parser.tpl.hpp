@@ -61,11 +61,7 @@ protected:
     #pragma region Fields
     unsigned _level = 0;
 
-    {% for rulename, rule in generator.all_rules_sorted -%}
-    {% if generator.should_cache(rule, include_left_recursive=True) -%}
-    std::map<state_t, std::optional<{{ rule.type }}>> cache_{{ rulename }}{};
-    {% endif %}
-    {%- endfor %}
+    // Cache-related fields in a following region
     #pragma endregion Fields
 
     #pragma region Rule types
@@ -123,8 +119,34 @@ protected:
     #pragma endregion Extras
 
     #pragma region Caching
+    #pragma region CacheNode
     template <RuleType rule_type>
-    constexpr std::map<state_t, rule_result_t<rule_type>> &_get_cache() {
+    class CacheNode {
+    public:
+        rule_result_t<rule_type> value;
+        state_t end_state;
+
+        CacheNode(rule_result_t<rule_type> value, state_t end_state)
+            : value{std::move(value)}, end_state{std::move(end_state)} {}
+        
+        CacheNode(const CacheNode &) = delete;
+        CacheNode(CacheNode &&) = default;
+        CacheNode &operator=(const CacheNode &) = delete;
+        CacheNode &operator=(CacheNode &&) = default;
+
+    };
+    #pragma endregion CacheNode
+
+    #pragma region Fields
+    {% for rulename, rule in generator.all_rules_sorted -%}
+    {% if generator.should_cache(rule, include_left_recursive=True) -%}
+    std::map<state_t, CacheNode<RuleType::{{ rulename }}>> cache_{{ rulename }}{};
+    {% endif %}
+    {%- endfor %}
+    #pragma endregion Fields
+
+    template <RuleType rule_type>
+    constexpr std::map<state_t, CacheNode<rule_type>> &_get_cache() {
         {%- for rulename, rule in generator.all_rules_sorted if generator.should_cache(rule, include_left_recursive=True) %}
         if constexpr (rule_type == RuleType::{{ rulename }}) {
             return cache_{{ rulename }};
@@ -145,7 +167,9 @@ protected:
             return std::nullopt;
         }
 
-        return it->second;
+        seek(it->second.end_state);
+
+        return it->second.value;
     }
 
     /// Updates, if present
@@ -153,7 +177,7 @@ protected:
     void store_cached(state_t state, rule_result_t<rule_type> result) {
         auto &cache = _get_cache<rule_type>();
 
-        cache.emplace(state, std::move(result));
+        cache.insert_or_assign(state, CacheNode<rule_type>(std::move(result), tell()));
     }
     #pragma endregion Caching
 

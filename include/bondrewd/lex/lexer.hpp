@@ -128,10 +128,21 @@ public:
         _ExpectProxy &operator=(_ExpectProxy &&) = default;
 
         std::optional<Token> token(TokenType type) {
-            lexer->ensure_next();
+            std::optional<Token> result = _token(type);
 
-            Token result = lexer->cur();
-            if (result.get_type() != type) {
+            if (!result) {
+                return result;
+            }
+            
+            lexer->advance();
+
+            return result;
+        }
+
+        std::optional<Token> keyword(HardKeyword keyword) {
+            std::optional<Token> result = _token(TokenType::keyword);
+
+            if (!result || result->get_keyword().value != keyword) {
                 return std::nullopt;
             }
 
@@ -140,38 +151,43 @@ public:
             return result;
         }
 
-        std::optional<Token> keyword(HardKeyword keyword) {
-            std::optional<Token> result = token(TokenType::keyword);
-
-            if (!result || result->get_keyword().value != keyword) {
-                return std::nullopt;
-            }
-
-            return result;
-        }
-
         std::optional<Token> punct(Punct punct) {
-            std::optional<Token> result = token(TokenType::punct);
+            std::optional<Token> result = _token(TokenType::punct);
 
             if (!result || result->get_punct().value != punct) {
                 return std::nullopt;
             }
 
+            lexer->advance();
+
             return result;
         }
 
         std::optional<Token> soft_keyword(const std::string_view &keyword) {
-            std::optional<Token> result = token(TokenType::name);
+            std::optional<Token> result = _token(TokenType::name);
 
             if (!result || result->get_name().value != keyword) {
                 return std::nullopt;
             }
+
+            lexer->advance();
 
             return result;
         }
 
     protected:
         Lexer *lexer;
+
+        std::optional<Token> _token(TokenType type) {
+            lexer->ensure_next();
+
+            Token result = lexer->cur();
+            if (result.get_type() != type) {
+                return std::nullopt;
+            }
+
+            return result;
+        }
 
     };
 
