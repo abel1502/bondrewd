@@ -43,6 +43,15 @@ give a general idea of the direction the language will evolve in.
     allow statements as well, as long as the result is balanced (i.e. can be
     parsed completely). Also not sure how I feel about macros defining new
     macros. Overall, still got things to think about here.
+ - **Generalized namespaces**. Various attribute access is ubiquitous in modern
+    programming languages. But in all cases known to me, it boils down to a
+    string-keyed mapping. Coupled with some thoughts on traits, this gave me an
+    idea to generalize namespaces: a key can be any (`ctime`) object. I'm
+    considering two possible syntaxes for this: either `a::(74)` or 
+    `a::for 74`. (Note that this isn't about `.` vs `::` - I intend to have both
+    with slightly different meanings). The first one probably would be more
+    clear (for example, what would `a::for b::c` mean? Introducing new
+    unapparent precedence rules goes against my design intentions).
  - **...**
 
 ## Code samples
