@@ -4,11 +4,13 @@
 #include <bondrewd/internal/common.hpp>
 #include <bondrewd/parse/parser_base.hpp>
 #include <bondrewd/ast/ast_nodes.gen.hpp>
+#include <bondrewd/lex/src_location.hpp>
 
 #include <map>
 #include <vector>
 #include <optional>
 #include <algorithm>
+#include <fmt/format.h>
 
 
 #pragma region Subheader
@@ -34,21 +36,35 @@ public:
     #pragma endregion Service constructors
 
     #pragma region API
-    {% filter indent(4) -%}
-    {{ generator.gen_api() }}
-    {%- endfilter %}
+    auto parse() {
+        auto result = parse_start_rule();
+
+        if (!result) {
+            auto &scanner = lexer.get_scanner();
+
+            lex::SrcLocation err_loc = scanner.tell();
+
+            throw SyntaxError(fmt::format("Syntax error at {} (`{}`)", err_loc.to_string(), scanner.view_context(err_loc, 5)));
+        }
+
+        return *result;
+    }
     #pragma endregion API
 
 protected:
     #pragma region Constants and typedefs
     using state_t = lex::Lexer::state_t;
+
+    static constexpr unsigned MAX_RECURSION_LEVEL = 6000;
     #pragma endregion Constants and typedefs
 
     #pragma region Fields
-    {%- for rulename, rule in generator.all_rules_sorted %}
-    {%- if generator.should_cache(rule, include_left_recursive=True) %}
+    unsigned _level = 0;
+
+    {% for rulename, rule in generator.all_rules_sorted -%}
+    {% if generator.should_cache(rule, include_left_recursive=True) -%}
     std::map<state_t, std::optional<{{ rule.type }}>> cache_{{ rulename }}{};
-    {%- endif %}
+    {% endif %}
     {%- endfor %}
     #pragma endregion Fields
 
@@ -120,7 +136,7 @@ protected:
     }
 
     template <RuleType rule_type>
-    rule_result_t<rule_type> get_cached(state_t state) {
+    std::optional<rule_result_t<rule_type>> get_cached(state_t state) {
         auto &cache = _get_cache<rule_type>();
 
         auto it = cache.find(state);

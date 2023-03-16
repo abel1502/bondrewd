@@ -173,7 +173,7 @@ class CXXCallMakerVisitor(GrammarVisitor):
         name: str = node.value
         if name.isupper() and name.lower() in TOKEN_TYPES:
             return FunctionCall(
-                assigned_variable=f"{name}_var",
+                assigned_variable=f"_token",
                 function=f"lexer.expect().token",
                 arguments=[f"lex::TokenType::{name.lower()}"],
                 comment=f"token={name}",
@@ -660,10 +660,13 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         return result
     
     def add_level(self) -> None:
-        pass  # TODO: Maybe implement for recursion level tracking?
+        self.print("if (++_level > MAX_RECURSION_LEVEL) {")
+        with self.indent():
+            self.print("throw SyntaxError(\"Recursion limit exceeded\");")
+        self.print("}")
 
     def remove_level(self) -> None:
-        pass
+        self.print("--_level;")
 
     def add_return(self, ret_val: str, *,
                    ignore_cache: bool = False) -> None:
@@ -691,14 +694,16 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         raise NotImplementedError("Use prepare() and a jinja template instead")
     
     def prepare(self) -> CXXParserGenerator:
-        if "header" in self.grammar.metas:
-            raise NotImplementedError("Overrding header not supported anymore")
-        
         self.collect_todo()
         
         CXXActionDeductionVisitor(self).apply()
         
         CXXTypeDeductionVisitor(self).apply()
+        
+        assert "start" in self.all_rules, "No start rule"
+        
+        assert "trailer" not in self.grammar.metas, "trailer not supported"
+        assert "header" not in self.grammar.metas, "Overrding header not supported anymore"
         
         # TODO: Mark all loops for caching?
         
@@ -717,21 +722,15 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
 
     @jinja_tpl_generator
     def gen_api(self) -> None:
-        if "start" not in self.all_rules:
-            # This is somewhat counter-intuitive, but this is what the trailer is supposed to be for
-            trailer: str = self.grammar.metas.get("trailer", "")
-            
-            assert trailer, "No start rule and no trailer"
-            
-            self.print(trailer)
-            
-            return
-        
-        assert "trailer" not in self.grammar.metas, "Trailer ignored when start rule is present"
         
         self.print("auto parse() {")
         with self.indent():
-            self.print("return parse_start_rule();")
+            self.print("auto result = parse_start_rule();")
+            self.print("if (!result) {")
+            with self.indent():
+                self.print("throw SyntaxError(\"Failed to parse input\");")
+            self.print("}")
+            self.print("return *result;")
         self.print("}")
 
     @jinja_tpl_generator
@@ -858,6 +857,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             rulename=node.name,
         )
         
+        self.print(f"PARSER_DBG_(\"Fail at %zu: %s\\n\", _state, \"{node.name}\");")
+        
         self.add_return("std::nullopt")
 
     def _handle_loop_rule_body(self, node: Rule, rhs: Rhs) -> None:
@@ -921,6 +922,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     ) -> None:
         self.print(f"{{ // {node}")
         with self.indent():
+            node_str: str = str(node).replace('"', '\\"')
+            self.print(f"PARSER_DBG_(\"%*c> %s[%zu-%zu]: %s\\n\", _level, ' ', \"{rulename}\", _state, tell(), \"{node_str}\");")
+            
             vars = self.collect_vars(node)
             has_cut: bool = "_cut_var" in vars
             
@@ -934,6 +938,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                     self.handle_alt_normal(node, is_gather, rulename)
 
             self.print("seek(_state);")
+            # TODO: Reorder with the above statement?
+            self.print(f"PARSER_DBG_(\"%*c- %s[%zu-%zu]: %s failed!\\n\", _level, ' ', \"{rulename}\", _state, tell(), \"{node_str}\");")
             
             if has_cut:
                 self.print("if (_cut_var) {")
@@ -944,6 +950,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     
     def handle_alt_normal(self, node: Alt, is_gather: bool, rulename: str | None) -> None:
         with self.nest_conditions(node):
+            node_str: str = str(node).replace('"', '\\"')
+            self.print(f"PARSER_DBG_(\"%*c+ %s[%zu-%zu]: %s succeeded!\\n\", _level, ' ', \"{rulename}\", _state, tell(), \"{node_str}\");")
+            
             self.emit_action(node, skip=self.skip_actions, is_gather=is_gather)
 
             self.add_return("_res")
@@ -1009,16 +1018,15 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         if node.action:
             # self.print(f"_res.emplace({node.action});")
             self.print(f"_res = {node.action};")
+            self.print(f"PARSER_DBG_(\"Hit with action [%zu-%zu]: %s\\n\", _state, tell(), \"{node}\");")
             return
         
         if is_gather:
             self.print("_res = std::move(seq_var);")
         
-        self.print(f"// !!! DBG: BAD ACTION: {node!r} (rule: {self._cur_rule!r})")
-        
-        # TODO: Horrible. Rewrite to not rely on the local variable array so much
         if len(self.local_variable_names) == 1:
             self.print(f"_res = std::move({self.local_variable_names[0]});")
+            self.print(f"PARSER_DBG_(\"Hit with default action [%zu-%zu]: %s\\n\", _state, tell(), \"{node.name}\");")
         
         raise GrammarError(f"Could not emit action for rule '{self._cur_rule.name}' ({node!r})")
 

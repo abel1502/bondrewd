@@ -56,23 +56,24 @@ void parser() {
     auto parser = Parser::from_string(
         "cartridge foo;\n"
         "\n"
-        "func main(args: &[str]): int32 {"
-        "    print(\"Bar!\");\n"
+        "func main(/* args: &[str] */): int32 => {\n"
+        "    // print(\"Bar!\");\n"
         "    0\n"
-        "}\n"
+        "};\n"
     );
 
-    // TODO: Unwrap results and throw exceptions inside `parse`
-    auto result = parser.parse();
+    ast::field<ast::cartridge> result{};
 
-    if (!result) {
-        std::cout << "Failed to parse.\n";
+    try {
+        result = parser.parse();
+    } catch (const parse::SyntaxError &e) {
+        std::cout << "[Error] " << e.what() << "\n";
         return;
     }
 
     std::cout << "Parsed successfully.\n";
 
-    ast::cartridge &cartridge = **result;
+    ast::cartridge &cartridge = *result;
 
     DumpVisitor()(cartridge);
 }

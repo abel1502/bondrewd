@@ -74,6 +74,7 @@ def main():
     generator = CXXParserGenerator(
         grammar,
         tokens_to_names,
+        debug=True,
     ).prepare()
     
     env = make_env()

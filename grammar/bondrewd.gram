@@ -50,11 +50,11 @@ ast::maybe<T> _opt2maybe(std::optional<ast::field<T>> opt) {
 # This means all ast::* types are automatically wrapped into ast::field<>
 @wrap_ast_types
 
-start[ast::cartridge]:  cartridge
+start: cartridge
 
 #region cartridge
 cartridge[ast::cartridge]:
-    | h=cartridge_header b=stmt*  { ast::Cartridge(std::move(h), std::move(b)) }
+    | h=cartridge_header b=stmt* $  { ast::Cartridge(std::move(h), std::move(b)) }
 
 cartridge_header[std::string]:
     | 'cartridge' n=name ';'  { std::move(n) }
@@ -100,7 +100,6 @@ expr_stmt[ast::stmt]:
 expr[ast::expr]:
     | func_def
     # | class_def
-    | block_expr
     # | if_expr
     # | for_expr
     # | while_expr
@@ -246,8 +245,8 @@ block_expr[ast::expr]:
 type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
-func_def[ast::expr]:
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr ';'  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+func_def[ast::expr]:  # TODO: Allow any expr!
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=block_expr ';'  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
 # TODO
 func_args_def[ast::arg_defs]:
