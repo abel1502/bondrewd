@@ -74,6 +74,12 @@ give a general idea of the direction the language will evolve in.
     tell is another type matches it or not (Still undecided about whether it
     should only concern specific types, or also generalized ones). This is a
     very raw idea though, I still have a lot to think about here.
+
+    I guess a "specific type" is something that can be used to compile value
+    manipulations. (Maybe this implies that there should be a separate
+    metaclass for `ctime`-types). It could actually have separate methods for
+    compile-time and run-time manipulations, allowing to make all `ctime` values
+    to be passed by-reference regardless of attributes...
  - **...**
 
 ## Code samples
