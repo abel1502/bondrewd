@@ -117,12 +117,16 @@ protected:
             return false;
         }
 
-        void *get_raw() const {
+        constexpr void *get_raw() const {
             return ptr;
         }
 
-        unsigned get_refs() const {
+        constexpr unsigned get_refs() const {
             return refs;
+        }
+
+        constexpr operator bool() const {
+            return ptr != nullptr;
         }
         #pragma endregion API
 
@@ -152,14 +156,26 @@ protected:
     }
 
     void arena_ptr_decref(void *ptr) {
+        static int recursion_depth = 0;
+
         if (!ptr) return;
+
+        ++recursion_depth;
 
         auto &allocation = find_allocation(ptr);
 
-        if (allocation.release()) {
-            std::swap(allocation, allocations.back());
-            allocations.pop_back();
+        if (allocation.release() && recursion_depth == 1) {
+            // Remove all null allocations
+            allocations.erase(
+                std::remove_if(allocations.begin(), allocations.end(), [](auto &allocation_) {
+                    return !allocation_;
+                }),
+                allocations.end()
+            );
+
         }
+
+        --recursion_depth;
     }
 
     bool arena_ptr_is_unique(void *ptr) {
@@ -215,7 +231,7 @@ public:
     }
 
     arena_ptr &operator=(const arena_ptr &other) {
-        if (this != &other) {
+        if (ptr != other.ptr) {
             arena->arena_ptr_decref(ptr);
             ptr = other.ptr;
             arena->arena_ptr_incref(ptr);
