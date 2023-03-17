@@ -54,7 +54,7 @@ public:
     #pragma endregion Service constructors
 
     #pragma region Factory
-    template <typename T, bondrewd::util::Arena *arena = &Arena::instance, typename Allocator = std::allocator<T>, typename ... Args>
+    template <typename T, bondrewd::util::Arena *arena /*= &Arena::instance*/, typename Allocator = std::allocator<T>, typename ... Args>
     static arena_ptr<T, arena> make_arena_ptr(Args &&... args) {
         T *ptr = Allocator{}.allocate(1);
 
@@ -305,7 +305,7 @@ protected:
 
 
 #pragma region make_arena_ptr
-template <typename T, Arena *arena = &Arena::instance, typename Allocator = std::allocator<T>, typename ... Args>
+template <typename T, Arena *arena /*= &Arena::instance*/, typename Allocator = std::allocator<T>, typename ... Args>
 arena_ptr<T, arena> make_arena_ptr(Args &&... args) {
     return Arena::make_arena_ptr<T, arena, Allocator>(std::forward<Args>(args)...);
 }
