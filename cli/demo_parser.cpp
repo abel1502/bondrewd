@@ -15,9 +15,8 @@ using namespace bondrewd;
 namespace test_funcs {
 
 
-struct DumpVisitor {
-    unsigned depth = 0;
-
+class DumpVisitor {
+public:
     DumpVisitor() = default;
 
     DumpVisitor(const DumpVisitor &) = delete;
@@ -32,21 +31,6 @@ struct DumpVisitor {
         return std::cout;
     }
 
-    static constexpr std::string_view _remove_prefix(std::string_view str, std::string_view prefix) {
-        if (str.starts_with(prefix)) {
-            str.remove_prefix(prefix.size());
-        }
-
-        return str;
-    }
-
-    template <typename T>
-    static constexpr std::string_view get_ast_name() {
-        std::string_view result = std::string_view(typeid(T).name());
-
-        return _remove_prefix(result, "class bondrewd::ast::nodes::");
-    }
-
     void operator()(ast::abstract_ast_node auto &node) {
         indent() << get_ast_name<decltype(node)>();
         visit<void>(*this, node);
@@ -59,6 +43,25 @@ struct DumpVisitor {
         --depth;
         indent() << "}\n";
     }
+
+private:
+    unsigned depth = 0;
+    
+    static constexpr std::string_view remove_prefix(std::string_view str, std::string_view prefix) {
+        if (str.starts_with(prefix)) {
+            str.remove_prefix(prefix.size());
+        }
+
+        return str;
+    }
+
+    template <typename T>
+    static constexpr std::string_view get_ast_name() {
+        std::string_view result = std::string_view(typeid(T).name());
+
+        return remove_prefix(result, "class bondrewd::ast::nodes::");
+    }
+
 };
 
 
