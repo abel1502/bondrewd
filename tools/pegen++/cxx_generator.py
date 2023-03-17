@@ -946,7 +946,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
                 else:
                     self.handle_alt_normal(node, is_gather, rulename)
 
-            self.print("seek(_state);")
+            if node.items or is_loop:
+                self.print("seek(_state);")
             # TODO: Reorder with the above statement?
             self.print(f"PARSER_DBG_(\"%*c- %s[%zu-%zu]: %s failed!\\n\", _level, ' ', \"{rulename}\", _state, tell(), \"{node_str}\");")
             
@@ -1003,7 +1004,10 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             
             self.print(line)
         
-        with self.indent():
+        if node.items:
+            with self.indent():
+                yield
+        else:
             yield
         
         for _ in node.items:
