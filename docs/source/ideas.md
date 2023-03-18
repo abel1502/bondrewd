@@ -55,7 +55,7 @@ give a general idea of the direction the language will evolve in.
     attribute access would then be equivalent to `a::("attr")` or
     `a::for "attr"`. Come to think of it, a hybrid syntax might be a good idea:
     `a::(for 74)`.
-    
+
     It is important to note that both objects play a part in generalized
     attribute resolution (which should be reflected in the attribute access
     override mechanism). Probably the left-hand side object would be queried

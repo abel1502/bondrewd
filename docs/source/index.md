@@ -17,12 +17,11 @@ At the moment, the language is under active development. Anything in this
 documentation may change at any time.
 ```
 
-% TODO: More
-
 ```{toctree}
 :maxdepth: 2
 :caption: Contents
 
 ideas
+grammar
 ctime
 ```
