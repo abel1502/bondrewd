@@ -9,6 +9,7 @@
 ![GitHub stars](https://img.shields.io/github/stars/abel1502/bondrewd?color=yellow&style=flat)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/abel1502/bondrewd)
 ![GitHub contributors](https://img.shields.io/github/contributors/abel1502/bondrewd)
+![LOC](https://sloc.xyz/github/abel1502/bondrewd?category=code)
 
 # Bondrewd
 
