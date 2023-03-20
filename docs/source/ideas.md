@@ -80,6 +80,31 @@ give a general idea of the direction the language will evolve in.
     metaclass for `ctime`-types). It could actually have separate methods for
     compile-time and run-time manipulations, allowing to make all `ctime` values
     to be passed by-reference regardless of attributes...
+ - **Mutable types**. This is still a very vague idea, but I'd like to have a
+    way to change a variable's type 'dynamically' at compile time. For example,
+    it would be nice to have the File type automatically track that it's been
+    opened before it's used, and closed before it's destroyed. This can already
+    be implemented, but comes at a run-time cost. My idea for a solution is to
+    allow the object to store some information about itself at compile time.
+    I'm not yet sure about the details, but I'm considering either something
+    like mutable template parameters, or, alternatively, some sort of `ctime`
+    fields (for non-`ctime` classes). One thing to note is that this cannot
+    always be properly computed at compile time, so providing the only available
+    File API in this way would be detremental. The better approach would be a
+    wrapper around normal File that would implement the checks. If the further
+    use cases I come up with could also be decomposed this way, I'll consider
+    enforcing this specific mechanism in some way.
+
+    Actually, this has lead me to consider the compile-time representation of
+    objects. From what I've come up with so far, the object, from the
+    perspective of the compiler, seems to consist of the type (a reference to a
+    `ctime`-available object), an optional value (represented how?), which is
+    only present for successfully constant-folded expressions, and a reference
+    to some `ctime` object responsible for implementing manipulations with the
+    object (perhaps only present for runtime objects, but maybe not). This is
+    actually a little depressing in a way --- to represent an object, we need
+    1 to 3 other objects... But something like this has already been done in
+    other languages (like Python), so I guess it's not that bad.
  - **...**
 
 ## Code samples
