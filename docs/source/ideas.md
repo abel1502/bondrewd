@@ -104,7 +104,10 @@ give a general idea of the direction the language will evolve in.
     object (perhaps only present for runtime objects, but maybe not). This is
     actually a little depressing in a way --- to represent an object, we need
     1 to 3 other objects... But something like this has already been done in
-    other languages (like Python), so I guess it's not that bad.
+    other languages (like Python), so I guess it's not that bad. Maybe the value
+    could be an AST tree...? No, I don't think so, actually. It's already done
+    the other way --- objects can be embedded into the AST in the form of
+    `Constant` nodes.
  - **...**
 
 ## Code samples
