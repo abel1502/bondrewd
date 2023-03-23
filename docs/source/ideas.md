@@ -108,6 +108,23 @@ give a general idea of the direction the language will evolve in.
     could be an AST tree...? No, I don't think so, actually. It's already done
     the other way --- objects can be embedded into the AST in the form of
     `Constant` nodes.
+ - **Asynchronous compilation**. This isn't, strictly speaking, a language
+    feature, in that it isn't exposed to the user. But it's a crucial concept
+    behind forward reference resolution in complex contexts. Essentially, the
+    idea is to make compilation of every function asynchronous, and whenever a
+    ctime operation cannot be resolved, to suspend the compilation until the
+    corresponding object is available. Note that, to support recursion between
+    functions and other similar constructs, objects would have to be defined in
+    parts, as soon as they become available. So, for a function, the ctime
+    status and the signature would appear before the body (unless the return
+    type is to be deduced from the body, this case I'm not sure about how
+    to handle...). This system probably won't eliminate the need for
+    incomplete types (_Generalized types_), though...
+ - **Cartridges**. I'm still very much undecided on how I'd like to implement
+    the module ('cartridge') system. The current stub way of specifying the
+    cartridge in the first line of the file really doesn't appeal to me. But,
+    crucially, I don't want to tie cartridges to the filesystem. I really like
+    how C++ namespaces separate the logical and physical organization of code.
  - **...**
 
 ## Code samples
@@ -291,10 +308,9 @@ trait type {
         T
     };
     
-    // Actually, after having reconsidered how argument collectors should work,
-    // I've come to the conclusion that there should only be a single argument
-    // collection per function. That means that unused arguments must be marked
-    // instead of being collected into a separate argument collector.
+    // No, you know what, this is bad. I'd much prefer to provide type.of as a
+    // compiler builtin, and then implement type deduction in the library with
+    // it.
 };
 ```
 
