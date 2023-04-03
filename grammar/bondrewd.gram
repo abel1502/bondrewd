@@ -104,10 +104,10 @@ type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
 var_def[ast::stmt]:
-    | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true, bool(c)) }
+    | 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
 
-func_def[ast::expr]:  # TODO: Allow any expr!
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=block_expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+func_def[ast::expr]:  # TODO: Allow only block_expr?
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t))) }
 
 # TODO
 func_args_def[ast::arg_defs]:
@@ -115,11 +115,11 @@ func_args_def[ast::arg_defs]:
 
 # TODO
 # impl_def[ast::stmt]:
-#     | c='ctime'? 'impl' c=name '{' d=tmp_definition* '}' ';'
+#     | 'impl' c=name '{' d=tmp_definition* '}' ';'
 
 # TODO
 # class_def[ast::expr]:
-#     | c='ctime'? 'class' n=name '(' a=func_args_def ')'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
+#     | 'class' n=name '(' a=func_args_def ')'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
 #endregion defn
 
 #region flow
@@ -286,6 +286,7 @@ atom_expr[ast::expr]:
     | a=name  { ast::Name(std::move(a)) }
     | a=NUMBER  { ast::Constant(util::variant_cast(a.get_number().value)) }
     | &STRING a=strings  { ast::Constant(std::move(a)) }
+    | '...'  { ast::Ellipsis() }
     | group_expr
     | tuple_expr
     | array_expr
@@ -313,6 +314,7 @@ array_expr[ast::expr]:
     | '[' ']'  { ast::Array(ast::make_sequence<ast::expr>()) }
     | '[' a=','.expr+ ','? ']'  { ast::Array(std::move(a)) }
 
+# TODO: Separate { ... } and ctime { ... } into separate rules?
 block_expr[ast::expr] (memo):
     | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
 #endregion expr
