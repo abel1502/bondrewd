@@ -125,6 +125,21 @@ give a general idea of the direction the language will evolve in.
     cartridge in the first line of the file really doesn't appeal to me. But,
     crucially, I don't want to tie cartridges to the filesystem. I really like
     how C++ namespaces separate the logical and physical organization of code.
+ - **~~Implicit `ctime`, explicit `runtime`~~**. I'm beginning to think that
+    `ctime` should be the default, and runtime code should be explicitly marked
+    as such. This is due to the fact that, starting at the root of the file, it
+    actuallyccontains `ctime` code. All sorts of definitions (classes, traits,
+    functions, namespaces, impls, vars and so on) are actually compile-time
+    code, which may incur something for run-time (like a reserved space or
+    function bytecode in memory), but nothing that would be compiled into any
+    sort of assembly code. The first (and only) place where runtime code could
+    appear is inside a runtime function, so it makes a lot more sense to mark
+    those, as opposed to everything else. Maybe we could even omit the explicit
+    marking, and instead assume that a function is runtime only if it contains a
+    runtime-exclusive operation (i.e. calling another runtime function, or
+    accessing a runtime variable). One potential problem is that it might be
+    counter-intuitive to some users, but I guess I'm willing to make that
+    sacrifice for the sake of principle.
  - **...**
 
 ## Code samples
@@ -335,4 +350,41 @@ func bar[T: type](value: T) => {
 func baz(value: Foo) => {
     value.foo();
 };
+```
+
+```{code-block} bondrewd
+:caption: "Implicit `ctime`, explicit `rtime`"
+
+// A compile-time variable
+//  - May be 'used' at runtime - behaviour defined via traits
+//  - Is a regular vaiable at compile-time
+var a: int32 = 3;
+
+// A runtime variable
+//  - Is a regular variable at runtime
+//  - Not available in any way at compile-time (excluding AST manipulations and
+//    so on)
+rtime var b: int32 = 5;
+
+// A compile-time function
+//  - May be 'used' at runtime - is constant-folded. Perhaps, the behaviour
+//    should be defined via traits?
+//  - Is a regular (callable) object at compile-time
+func foo(a: int32, b: int32): int32 => {
+    a + b
+};
+
+// A runtime function
+//  - May be 'used' at runtime - translates to a call. Perhaps, the behaviour
+//    should be defined via traits?
+//  - Is an object at compile-time, but not callable. May support AST access or
+//    something like that...
+rtime func bar(a: int32, b: int32): int32 => {
+    a - b
+};
+
+
+
+
+
 ```
