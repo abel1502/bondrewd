@@ -305,13 +305,21 @@ class CXXActionDeductionVisitor(GrammarVisitor):
             self.visit(rule)
     
     def visit_Rule(self, node: Rule) -> None:
-        self.visit(node.rhs)
+        significant: bool = self.visit(node.rhs)
+        
+        if not significant:
+            assert node.type is None
+            node.type = "std::monostate"
     
-    def visit_Rhs(self, node: Rhs) -> None:
+    def visit_Rhs(self, node: Rhs) -> bool:
+        significant: bool = False
+        
         for alt in node.alts:
-            self.visit(alt)
+            significant |= self.visit(alt)
+        
+        return significant
     
-    def visit_Alt(self, node: Alt) -> None:
+    def visit_Alt(self, node: Alt) -> bool:
         significant_items: list[NamedItem] = []
         named_items: list[NamedItem] = []
         
@@ -322,7 +330,11 @@ class CXXActionDeductionVisitor(GrammarVisitor):
                 named_items.append(item)
         
         if node.action:
-            return
+            return True
+        
+        if len(significant_items) == 0:
+            node.action = "std::monostate{}"
+            return False
         
         if len(significant_items) == 1:
             item: NamedItem = significant_items[0]
@@ -331,11 +343,11 @@ class CXXActionDeductionVisitor(GrammarVisitor):
                 item.name = "_single_result"
             
             node.action = f"std::move({item.name})"
-            return
+            return True
         
         if len(named_items) == 1:
             node.action = f"std::move({named_items[0].name})"
-            return
+            return True
         
         raise GrammarError(f"Could not deduce action for alt: {node!r}")
     
