@@ -353,38 +353,24 @@ func baz(value: Foo) => {
 ```
 
 ```{code-block} bondrewd
-:caption: "Implicit `ctime`, explicit `rtime`"
+:caption: "Forward references"
 
-// A compile-time variable
-//  - May be 'used' at runtime - behaviour defined via traits
-//  - Is a regular vaiable at compile-time
-var a: int32 = 3;
-
-// A runtime variable
-//  - Is a regular variable at runtime
-//  - Not available in any way at compile-time (excluding AST manipulations and
-//    so on)
-rtime var b: int32 = 5;
-
-// A compile-time function
-//  - May be 'used' at runtime - is constant-folded. Perhaps, the behaviour
-//    should be defined via traits?
-//  - Is a regular (callable) object at compile-time
-func foo(a: int32, b: int32): int32 => {
-    a + b
+// In functions: will work, because function body is interpreted lazily
+func f1() => {
+    f2();
 };
 
-// A runtime function
-//  - May be 'used' at runtime - translates to a call. Perhaps, the behaviour
-//    should be defined via traits?
-//  - Is an object at compile-time, but not callable. May support AST access or
-//    something like that...
-rtime func bar(a: int32, b: int32): int32 => {
-    a - b
-};
+func f2() => {};
 
+// In classes: will not work as is...
+// Maybe we should interpret the class fields lazily as well...
+class C1(
+    // By the way, this syntax for references might turn out problematic, since
+    // it is ambiguous whether this means the refernce type, or a reference to
+    // the type object...
+    b: &C2,
+);
 
-
-
+class C2();
 
 ```
