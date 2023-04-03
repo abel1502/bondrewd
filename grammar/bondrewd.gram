@@ -90,36 +90,55 @@ defn_expr[ast::expr]:
     | a=defn  { ast::Defn(std::move(a)) }
 
 defn[ast::defn] (memo):
-    | 'ctime' a=raw_defn  { ({ a.flag = ast::CTime(); std::move(a) }) }
-    | 'rtime' a=raw_defn  { ({ a.flag = ast::RTime(); std::move(a) }) }
+    | 'ctime' a=raw_defn  { ({ a->flag = ast::CTime(); a; }) }
+    | 'rtime' a=raw_defn  { ({ a->flag = ast::RTime(); a; }) }
     | raw_defn
 
 raw_defn[ast::defn]:
     | var_def
     | func_def
-    # | impl_def
-    # | class_def
+    | impl_def
+    # | struct_def
+    # | ns_def
 
 type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
 
-var_def[ast::stmt]:
+var_def[ast::defn]:
     | 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
 
-func_def[ast::expr]:  # TODO: Allow only block_expr?
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t))) }
+func_def[ast::defn]:  # TODO: Allow only block_expr?
+    | 'func' n=name? a=args_spec t=type_annotation? '=>' b=expr  { ast::FuncDef(_opt2maybe(std::move(n)), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
-# TODO
-func_args_def[ast::arg_defs]:
-    | { ast::arg_defs(ast::make_sequence<ast::arg_def>()) }
+# TODO: *args, **kwargs - or templated that, perhaps?
+# TODO: support for explicit argspec objects, if necessary
+args_spec[ast::args_spec]:
+    | '(' a=args_spec_nonempty ','? ')'  { std::move(a) }
+    | '(' ')'  { ast::args_spec(ast::make_sequence<ast::arg_def>(), false) }
 
-# TODO
-# impl_def[ast::stmt]:
-#     | 'impl' c=name '{' d=tmp_definition* '}' ';'
+args_spec_nonempty[ast::args_spec]:
+    | "self" ',' a=','.arg_spec+  { ast::args_spec(std::move(a), true) }
+    | "self"  { ast::args_spec(ast::make_sequence<ast::arg_def>(), true) }
+    | a=','.arg_spec+  { ast::args_spec(std::move(a), false) }
 
-# TODO
-# class_def[ast::expr]:
-#     | 'class' n=name '(' a=func_args_def ')'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
+# TODO: unused and fixed args?
+arg_spec[ast::arg_spec]:
+    | n=name t=type_annotation d=('=' expr)?  { ast::arg_spec(std::move(n), std::move(t), _opt2maybe(std::move(d))) }
+
+defn_block[ast::sequence<ast::stmt>]:
+    | '{' b=stmt* '}'  { std::move(b) }
+
+# TODO: Allow 'namespace' as an alternative to 'impl'?
+impl_def[ast::defn]:
+    | 'impl' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::nullopt, std::move(b)) }
+    | 'impl' t=expr 'for' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::move(t), std::move(b)) }
+
+# TODO: Forbid 'class' here?
+struct_def[ast::defn]:
+    | ('class' | 'struct') n=name? a=args_spec  { ast::StructDef(_opt2maybe(std::move(n)), std::move(a)) }
+
+# TODO: ?
+#     | 'namespace' n=name b=defn_block
 #endregion defn
 
 #region flow
@@ -127,8 +146,8 @@ flow_expr[ast::expr]:
     | a=flow  { ast::Flow(std::move(a)) }
 
 flow[ast::flow] (memo):
-    | 'ctime' a=raw_flow  { ({ a.flag = ast::CTime(); a }) }
-    | 'rtime' a=raw_flow  { ({ a.flag = ast::RTime(); a }) }
+    | 'ctime' a=raw_flow  { ({ a->flag = ast::CTime(); a; }) }
+    | 'rtime' a=raw_flow  { ({ a->flag = ast::RTime(); a; }) }
     | raw_flow
 
 raw_flow[ast::flow]:
@@ -138,16 +157,16 @@ raw_flow[ast::flow]:
     | loop_flow
 
 if_flow[ast::flow]:
-    | 'if' c=expr t=flow_block e=('else' flow_block)?  { ast::If(std::move(a), std::move(b), _opt2maybe(std::move(c))) }
+    | 'if' c=expr t=flow_block e=('else' flow_block)?  { ast::If(std::move(c), std::move(t), _opt2maybe(std::move(e))) }
 
 for_flow[ast::flow]:
-    | 'for' v=name 'in' c=expr t=flow_block e=('else' flow_block)?  { ast::For(std::move(v), std::move(c), std::move(t), _opt2maybe(std::move(e))) }
+    | 'for' v=name 'in' s=expr b=flow_block e=('else' flow_block)?  { ast::For(std::move(v), std::move(s), std::move(b), _opt2maybe(std::move(e))) }
 
 while_flow[ast::flow]:
-    | 'while' c=expr t=flow_block e=('else' flow_block)?  { ast::While(std::move(c), std::move(t), _opt2maybe(std::move(e))) }
+    | 'while' c=expr b=flow_block e=('else' flow_block)?  { ast::While(std::move(c), std::move(b), _opt2maybe(std::move(e))) }
 
 loop_flow[ast::flow]:
-    | 'loop' t=flow_block  { ast::Loop(std::move(t)) }
+    | 'loop' b=flow_block  { ast::Loop(std::move(b)) }
 
 flow_block[ast::expr]:
     | block_expr

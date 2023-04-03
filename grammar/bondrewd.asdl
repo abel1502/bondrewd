@@ -29,18 +29,26 @@ module Bondrewd {
          | Continue()
          | Tuple(expr* values)
          | Array(expr* values)
-     
+    
     defn = VarDef(identifier name, expr? type, expr? value, bool mut)
-         | ImplDef(identifier class_name, identifier? trait_name, expr body)
-         | FuncDef(identifier name, arg_defs args, expr? return_type, expr body)
-         | ClassDef(identifier name, expr body)
+         | ImplDef(expr cls, expr? trait, stmt* body)
+         | FuncDef(identifier? name, args_spec args, expr? return_type, expr body)  -- TODO: Forbid deduction of return type?
+         | StructDef(identifier? name, args_spec args)
         attributes (xtime_flag flag)
+        extras """
+        defn(auto &&value) :
+            defn(std::forward<decltype(value)>(value), DefaultTime()) {}
+        """
 
     flow = If(expr cond, expr body, expr orelse)
          | For(identifier var, expr iter, expr body, expr orelse)
          | While(expr cond, expr body, expr? orelse)
          | Loop(expr body)
         attributes (xtime_flag flag)
+        extras """
+        flow(auto &&value) :
+            flow(std::forward<decltype(value)>(value), DefaultTime()) {}
+        """
 
     -- TODO: Currently, enum-like values are represented by empty variants (good),
     --       but they are stored by reference-counted arena_ptr's (bad). Maybe
@@ -61,9 +69,9 @@ module Bondrewd {
 
     expr_context = Load | Store  -- TODO: ? | Del
 
-    arg_defs = (arg_def* args)
+    args_spec = (arg_spec* args, bool with_self)
 
-    arg_def = (identifier name, expr type)
+    arg_spec = (identifier name, expr type, expr? default)
      
     call_args = (call_arg* args, identifier? vararg, identifier? kwarg)
 
