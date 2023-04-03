@@ -7,9 +7,7 @@ module Bondrewd {
     cartridge = Cartridge(identifier name, stmt* body)
 
     -- TODO: More data for classdef and impldef
-    stmt = VarDef(identifier name, expr? type, expr? value, bool mut, bool ctime)
-         | Impl(identifier class_name, identifier? trait_name, expr body, bool ctime)
-         | Assign(expr target, expr value, assign_op op)
+    stmt = Assign(expr target, expr value, assign_op op)
          | Expr(expr value)
          | Pass
 
@@ -20,20 +18,29 @@ module Bondrewd {
          | Call(expr func, call_args args)
          | Subscript(expr value, call_args args)
          | Block(stmt* body, expr value, bool ctime)
-         | FuncDef(identifier name, arg_defs args, expr? return_type, expr body)
-         | ClassDef(identifier name, expr body, bool ctime)
+         | Defn(defn value)
          | BinOp(binary_op op, expr left, expr right)
          | UnOp(unary_op op, expr operand)
          | Compare(expr left, cmp_op* op, expr* operands)
          | BoolOp(bool_op op, expr* values)
-         | If(expr cond, expr body, expr orelse)
-         | For(identifier var, expr iter, expr body, expr orelse)
-         | While(expr cond, expr body, expr? orelse)
+         | Flow(flow value)
          | Return(expr value)
          | Break(expr value)
          | Continue()
          | Tuple(expr* values)
          | Array(expr* values)
+     
+    defn = VarDef(identifier name, expr? type, expr? value, bool mut)
+         | ImplDef(identifier class_name, identifier? trait_name, expr body)
+         | FuncDef(identifier name, arg_defs args, expr? return_type, expr body)
+         | ClassDef(identifier name, expr body)
+        attributes (xtime_flag flag)
+
+    flow = If(expr cond, expr body, expr orelse)
+         | For(identifier var, expr iter, expr body, expr orelse)
+         | While(expr cond, expr body, expr? orelse)
+         | Loop(expr body)
+        attributes (xtime_flag flag)
 
     -- TODO: Currently, enum-like values are represented by empty variants (good),
     --       but they are stored by reference-counted arena_ptr's (bad). Maybe
@@ -61,5 +68,7 @@ module Bondrewd {
     call_args = (call_arg* args, identifier? vararg, identifier? kwarg)
 
     call_arg = (identifier? name, expr value)
+
+    xtime_flag = CTime | RTime | DefaultTime
 
 }

@@ -2,11 +2,12 @@
 
 # TODO: add lookaheads and cuts where applicable; add `(memo)` to the most common rules
 # TODO: Fixup operator-related rules!
-# TODO: Sequence helpers!
 # TODO: Force parentheses around some operators (like bitwise)?
+# TODO: Sequence helpers!
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Explicitly specify ast::nodes::?
 # TODO: Empty rules cause issues with how left-recursion is handled. Fix it!
+# TODO: Templates!
 
 @subheader '''\
 #include <string>
@@ -63,8 +64,6 @@ cartridge_header[std::string]:
 
 #region stmt
 stmt[ast::stmt] (memo):
-    | var_def_stmt
-    | impl_stmt
     | assign_stmt
     | expr_stmt
     | ';'  { ast::Pass() }
@@ -84,14 +83,79 @@ assign_op[ast::assign_op]:
     | '&='   { ast::AsgnBitAnd() }
     | '|='   { ast::AsgnBitOr() }
     | '^='   { ast::AsgnBitXor() }
+#endregion stmt
 
-var_def_stmt[ast::stmt]:
+#region defn
+defn_expr[ast::expr]:
+    | a=defn  { ast::Defn(std::move(a)) }
+
+defn[ast::defn] (memo):
+    | 'ctime' a=raw_defn  { ({ a.flag = ast::CTime(); std::move(a) }) }
+    | 'rtime' a=raw_defn  { ({ a.flag = ast::RTime(); std::move(a) }) }
+    | raw_defn
+
+raw_defn[ast::defn]:
+    | var_def
+    | func_def
+    # | impl_def
+    # | class_def
+
+type_annotation[ast::expr]:
+    | ':' a=expr  { std::move(a) }
+
+var_def[ast::stmt]:
     | c='ctime'? 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true, bool(c)) }
 
-# TODO: Decide on the body contents
-impl_stmt[ast::stmt]:
-    # | c='ctime'? 'impl' c=name '{' d=tmp_definition* '}' ';'
-#endregion stmt
+func_def[ast::expr]:  # TODO: Allow any expr!
+    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=block_expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+
+# TODO
+func_args_def[ast::arg_defs]:
+    | { ast::arg_defs(ast::make_sequence<ast::arg_def>()) }
+
+# TODO
+# impl_def[ast::stmt]:
+#     | c='ctime'? 'impl' c=name '{' d=tmp_definition* '}' ';'
+
+# TODO
+# class_def[ast::expr]:
+#     | c='ctime'? 'class' n=name '(' a=func_args_def ')'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
+#endregion defn
+
+#region flow
+flow_expr[ast::expr]:
+    | a=flow  { ast::Flow(std::move(a)) }
+
+flow[ast::flow] (memo):
+    | 'ctime' a=raw_flow  { ({ a.flag = ast::CTime(); a }) }
+    | 'rtime' a=raw_flow  { ({ a.flag = ast::RTime(); a }) }
+    | raw_flow
+
+raw_flow[ast::flow]:
+    | if_flow
+    | for_flow
+    | while_flow
+    | loop_flow
+
+if_flow[ast::flow]:
+    | 'if' c=expr t=flow_block e=('else' flow_block)?  { ast::If(std::move(a), std::move(b), _opt2maybe(std::move(c))) }
+
+for_flow[ast::flow]:
+    | 'for' v=name 'in' c=expr t=flow_block e=('else' flow_block)?  { ast::For(std::move(v), std::move(c), std::move(t), _opt2maybe(std::move(e))) }
+
+while_flow[ast::flow]:
+    | 'while' c=expr t=flow_block e=('else' flow_block)?  { ast::While(std::move(c), std::move(t), _opt2maybe(std::move(e))) }
+
+loop_flow[ast::flow]:
+    | 'loop' t=flow_block  { ast::Loop(std::move(t)) }
+
+flow_block[ast::expr]:
+    | block_expr
+    | flow_expr
+    | return_expr
+    | break_expr
+    | continue_expr
+#endregion flow
 
 #region expr
 expr_stmt[ast::stmt]:
@@ -99,18 +163,25 @@ expr_stmt[ast::stmt]:
 
 # TODO: Support constants!
 expr[ast::expr] (memo):
-    | func_def
-    # | class_def
-    # | if_expr
-    # | for_expr
-    # | while_expr
-    | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
-    | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
+    | defn_expr
+    | flow_expr
+    | return_expr
+    | break_expr
+    | continue_expr
     | disjunction_expr
 
 expr_or_unit[ast::expr]:
     | expr
     | { ast::Constant(std::monostate()) }  # TODO: Implement Unit!
+
+return_expr[ast::expr]:
+    | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
+
+break_expr[ast::expr]:
+    | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
+
+continue_expr[ast::expr]:
+    | 'continue'  { ast::Continue() }
 
 #region operators
 #region logical
@@ -244,20 +315,6 @@ array_expr[ast::expr]:
 
 block_expr[ast::expr] (memo):
     | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
-
-type_annotation[ast::expr]:
-    | ':' a=expr  { std::move(a) }
-
-func_def[ast::expr]:  # TODO: Allow any expr!
-    | 'func' n=name '(' a=func_args_def ')' t=type_annotation? '=>' b=block_expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
-
-# TODO
-func_args_def[ast::arg_defs]:
-    | { ast::arg_defs(ast::make_sequence<ast::arg_def>()) }
-
-# TODO
-# class_def[ast::expr]:
-#     | c='ctime'? 'class' n=name '(' a=func_args_def ')'  { ast::ClassDef(std::move(n), ast::Constant(std::monostate()), bool(c)) }
 #endregion expr
 
 # TODO: Finish!
