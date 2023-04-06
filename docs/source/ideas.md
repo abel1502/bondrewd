@@ -374,3 +374,86 @@ class C1(
 class C2();
 
 ```
+
+```{code-block} bondrewd
+:caption: "Immediate impls"
+
+// These are perfectly okay without any special grammar needed:
+impl class Foo(
+    int32 a,
+    int32 b,
+) {
+    // ...
+};
+
+impl ns std::something {
+    // ...
+};
+
+// However, it gets a bit messy with templates:
+// (We need to specify template parameters thrice!)
+impl[T: type] class Foo[T: type]()[T] {
+    // ...
+};
+
+// I need some better solution for this...
+// Actually, even without immediate impl, this is still problematic
+// Maybe I should allow to somehow provide an impl for a template type
+// without explicitly redeclaring the template parameters?
+// I certainly don't want to repeat Rust's practice of having to repeat
+// all type constraints every time...
+
+```
+
+```{code-block} bondrewd
+:caption: "Explicit template declarations"
+
+// Class template
+template[T: type] class Foo(
+    // ...
+);
+
+// Impl template
+template[T: type] impl Foo {
+    // ...
+};
+
+// Function template
+template[T: type] func bar() => {
+    // ...
+};
+
+// Inline class impl template
+// (No grammatical exception needed here. All this does is declare a template
+//  within which lays an inline impl (impl with a class declaration inside).
+//  Since impl blocks return the class object, this makes the class templated
+//  automatically.)
+template[T: type] impl class Baz() {
+    // ...
+};
+
+// Could we use any expression here?
+Abomination = template[T: type] (T, int32);
+
+// I guess we could allow explicit names instead:
+template Abomination[T: type] (T, int32);
+
+// ... and deduce them from the object, if omitted:
+template[T: type] class Smth();
+
+// But then weird usecases arise:
+template[T: type] std::int32;
+// It already exists, but from the template's perspective, it's just a class
+// with a qualname like any other. So, would it overwrite std::int32?
+// And should it?
+
+// What if we name the outermost entity?
+template Smth2[T: type] class ();
+
+// Maybe demand a => like with functions?
+template Smth3[T: type] => impl class () {};
+
+// This looks horrible, though...
+template do_smth4[T: type] => func () => {};
+
+```
