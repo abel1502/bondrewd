@@ -17,7 +17,8 @@ module Bondrewd {
          | Attribute(expr value, identifier attr, attr_op type)
          | Call(expr func, call_args args)
          | Subscript(expr value, call_args args)
-         | Block(stmt* body, expr value, bool ctime)
+         | CtimeBlock(expr body)  -- body is always a Block
+         | Block(stmt* body, expr value)
          | Defn(defn value)
          | BinOp(binary_op op, expr left, expr right)
          | UnOp(unary_op op, expr operand)

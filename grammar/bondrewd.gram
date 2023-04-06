@@ -1,11 +1,8 @@
 # PEG grammar for the Bondrewd language
 
 # TODO: add lookaheads and cuts where applicable; add `(memo)` to the most common rules
-# TODO: Fixup operator-related rules!
-# TODO: Force parentheses around some operators (like bitwise)?
 # TODO: Sequence helpers!
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
-# TODO: Explicitly specify ast::nodes::?
 # TODO: Empty rules cause issues with how left-recursion is handled. Fix it!
 # TODO: Templates!
 
@@ -55,6 +52,8 @@ ast::maybe<T> _opt2maybe(std::optional<ast::field<T>> opt) {
 start: cartridge
 
 #region cartridge
+# TODO: Rework
+
 cartridge[ast::cartridge]:
     | h=cartridge_header b=stmt* $  { ast::Cartridge(std::move(h), std::move(b)) }
 
@@ -66,7 +65,7 @@ cartridge_header[std::string]:
 stmt[ast::stmt] (memo):
     | assign_stmt
     | expr_stmt
-    | ';'  { ast::Pass() }
+    | pass_stmt
 
 assign_stmt[ast::stmt]:
     | a=expr op=assign_op b=expr ';'  { ast::Assign(std::move(a), std::move(b), std::move(op)) }
@@ -83,12 +82,15 @@ assign_op[ast::assign_op]:
     | '&='   { ast::AsgnBitAnd() }
     | '|='   { ast::AsgnBitOr() }
     | '^='   { ast::AsgnBitXor() }
+
+expr_stmt[ast::stmt]:
+    | a=expr ';'  { ast::Expr(std::move(a)) }
+
+pass_stmt[ast::stmt]:
+    | ';'  { ast::Pass() }
 #endregion stmt
 
 #region defn
-defn_expr[ast::expr]:
-    | a=defn  { ast::Defn(std::move(a)) }
-
 defn[ast::defn] (memo):
     | 'ctime' a=raw_defn  { ({ a->flag = ast::CTime(); a; }) }
     | 'rtime' a=raw_defn  { ({ a->flag = ast::RTime(); a; }) }
@@ -142,9 +144,6 @@ struct_def[ast::defn]:
 #endregion defn
 
 #region flow
-flow_expr[ast::expr]:
-    | a=flow  { ast::Flow(std::move(a)) }
-
 flow[ast::flow] (memo):
     | 'ctime' a=raw_flow  { ({ a->flag = ast::CTime(); a; }) }
     | 'rtime' a=raw_flow  { ({ a->flag = ast::RTime(); a; }) }
@@ -177,8 +176,9 @@ flow_block[ast::expr]:
 #endregion flow
 
 #region expr
-expr_stmt[ast::stmt]:
-    | a=expr ';'  { ast::Expr(std::move(a)) }
+expr_or_unit[ast::expr]:
+    | expr
+    | { ast::Constant(std::monostate()) }  # TODO: Implement Unit!
 
 # TODO: Support constants!
 expr[ast::expr] (memo):
@@ -187,12 +187,17 @@ expr[ast::expr] (memo):
     | return_expr
     | break_expr
     | continue_expr
-    | disjunction_expr
+    | expr_0
 
-expr_or_unit[ast::expr]:
-    | expr
-    | { ast::Constant(std::monostate()) }  # TODO: Implement Unit!
+#region wrapped
+defn_expr[ast::expr]:
+    | a=defn  { ast::Defn(std::move(a)) }
 
+flow_expr[ast::expr]:
+    | a=flow  { ast::Flow(std::move(a)) }
+#endregion wrapped
+
+#region flow_ops
 return_expr[ast::expr]:
     | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
 
@@ -201,33 +206,46 @@ break_expr[ast::expr]:
 
 continue_expr[ast::expr]:
     | 'continue'  { ast::Continue() }
+#endregion flow_ops
 
 #region operators
-#region logical
-disjunction_expr[ast::expr] (memo):
-    | a=conjunction_expr b=('or' c=conjunction_expr { c })+  { ast::BoolOp(ast::Or(), ast::make_sequence<ast::expr>()) }
-    | conjunction_expr
+#region expr_0
+expr_0[ast::expr] (memo):
+    | and_expr
+    | or_expr
+    | expr_1
 
-conjunction_expr[ast::expr] (memo):
-    | a=inversion_expr b=('and' c=inversion_expr { c })+  { ast::BoolOp(ast::And(), ast::make_sequence<ast::expr>()) }
-    | inversion_expr
+and_expr[ast::expr]:
+    | a=expr_2 b=('and' expr_1)+  { ast::BoolOp(ast::And(), _prepend1(a, b)) }
 
-inversion_expr[ast::expr] (memo):
-    | 'not' a=inversion_expr  { ast::UnOp(ast::Not(), std::move(a)) }
+or_expr[ast::expr]:
+    | a=expr_2 b=('or' expr_1)+  { ast::BoolOp(ast::Or(), _prepend1(a, b)) }
+#endregion expr_0
+
+#region expr_1
+expr_1[ast::expr]:
+    | not_expr
+    | expr_2
+
+not_expr[ast::expr]:
+    | 'not' a=expr_1  { ast::UnaryOp(ast::Not(), std::move(a)) }
+#endregion expr_1
+
+#region expr_2
+expr_2[ast::expr]:
     | comparison_expr
-#endregion logical
+    | bidir_cmp_expr
+    | expr_3
 
-#region comparison
 comparison_expr[ast::expr]:  # TODO: Extract from sequence somehow (without a 1000-char rule, preferably)
-    | a=bidir_cmp_expr b=comparison_followup_pair+  { ast::Compare(
-        std::move(a),
+    | f=expr_3 n=comparison_followup_pair+  { ast::Compare(
+        std::move(f),
         ast::make_sequence<ast::cmp_op>(),
         ast::make_sequence<ast::expr>()) 
     }
-    | bidir_cmp_expr
 
 comparison_followup_pair[std::pair<ast::field<ast::cmp_op>, ast::field<ast::expr>>]:
-    | o=comparison_op a=bidir_cmp_expr  { std::make_pair(std::move(o), std::move(a)) }
+    | o=comparison_op a=expr_3  { std::make_pair(std::move(o), std::move(a)) }
 
 comparison_op[ast::cmp_op]:
     | '=='  { ast::Eq() }
@@ -239,69 +257,96 @@ comparison_op[ast::cmp_op]:
     | 'in'  { ast::In() }
     | 'not' 'in'  { ast::NotIn() }
 
-# This one doesn't allow chaining, since it would've made no sense. Use parentheses if you really need it.
 bidir_cmp_expr[ast::expr]:
-    | a=bitor_expr '<=>' b=bitor_expr  { ast::BinOp(ast::BidirCmp(), std::move(a), std::move(b)) }
+    | a=expr_3 '<=>' b=expr_3  { ast::BinOp(ast::BidirCmp(), std::move(a), std::move(b)) }
+#endregion expr_2
+
+#region expr_3
+expr_3[ast::expr]:
+    | arithm_expr
+    | bitwise_expr
+    | expr_4
+
+arithm_expr[ast::expr]:
+    | sum_expr
+    | product_expr
+
+sum_expr[ast::expr]:
+    | a=(sum_expr | product_expr) '+' b=product_expr  { ast::BinOp(ast::Add(), std::move(a), std::move(b)) }
+    | a=(sum_expr | product_expr) '-' b=product_expr  { ast::BinOp(ast::Sub(), std::move(a), std::move(b)) }
+
+product_expr[ast::expr]:
+    | a=(product_expr | expr_4) '*' b=expr_4  { ast::BinOp(ast::Mul(), std::move(a), std::move(b)) }
+    | a=(product_expr | expr_4) '/' b=expr_4  { ast::BinOp(ast::Div(), std::move(a), std::move(b)) }
+    | a=(product_expr | expr_4) '%' b=expr_4  { ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
+
+bitwise_expr[ast::expr]:
     | bitor_expr
-#endregion comparison
-
-#region bitwise
-bitor_expr[ast::expr]:
-    | a=bitor_expr '|' b=bitxor_expr  { ast::BinOp(ast::BitOr(), std::move(a), std::move(b)) }
-    | bitxor_expr
-
-bitxor_expr[ast::expr]:
-    | a=bitxor_expr '^' b=bitand_expr  { ast::BinOp(ast::BitXor(), std::move(a), std::move(b)) }
     | bitand_expr
-
-bitand_expr[ast::expr]:
-    | a=bitand_expr '&' b=shift_expr  { ast::BinOp(ast::BitAnd(), std::move(a), std::move(b)) }
+    | bitxor_expr
     | shift_expr
 
+bitor_expr[ast::expr]:
+    | a=(bitor_expr | expr_4) '|' b=expr_4  { ast::BinOp(ast::BitOr(), std::move(a), std::move(b)) }
+
+bitand_expr[ast::expr]:
+    | a=(bitand_expr | expr_4) '&' b=expr_4  { ast::BinOp(ast::BitAnd(), std::move(a), std::move(b)) }
+
+bitxor_expr[ast::expr]:
+    | a=(bitxor_expr | expr_4) '^' b=expr_4  { ast::BinOp(ast::BitXor(), std::move(a), std::move(b)) }
+
 shift_expr[ast::expr]:
-    | a=shift_expr '<<' b=sum_expr  { ast::BinOp(ast::LShift(), std::move(a), std::move(b)) }
-    | a=shift_expr '>>' b=sum_expr  { ast::BinOp(ast::RShift(), std::move(a), std::move(b)) }
-    | sum_expr
-#endregion bitwise
+    | a=(shift_expr | expr_4) '<<' b=expr_4  { ast::BinOp(ast::LShift(), std::move(a), std::move(b)) }
+    | a=(shift_expr | expr_4) '>>' b=expr_4  { ast::BinOp(ast::RShift(), std::move(a), std::move(b)) }
+#endregion expr_3
 
-#region arithmetic
-sum_expr[ast::expr]:
-    | a=sum_expr '+' b=term_expr  { ast::BinOp(ast::Add(), std::move(a), std::move(b)) }
-    | a=sum_expr '-' b=term_expr  { ast::BinOp(ast::Sub(), std::move(a), std::move(b)) }
-    | term_expr
-
-term_expr[ast::expr]:
-    | a=term_expr '*' b=factor_expr  { ast::BinOp(ast::Mul(), std::move(a), std::move(b)) }
-    | a=term_expr '/' b=factor_expr  { ast::BinOp(ast::Div(), std::move(a), std::move(b)) }
-    | a=term_expr '%' b=factor_expr  { ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
-    | factor_expr
-#endregion arithmetic
-
-#region unary
-factor_expr[ast::expr] (memo):
-    | '+' a=factor_expr  { ast::UnOp(ast::UAdd(), std::move(a)) }
-    | '-' a=factor_expr  { ast::UnOp(ast::USub(), std::move(a)) }
-    | '~' a=factor_expr  { ast::UnOp(ast::BitInv(), std::move(a)) }
-    | '&' a=factor_expr  { ast::UnOp(ast::URef(), std::move(a)) }
-    | '*' a=factor_expr  { ast::UnOp(ast::UStar(), std::move(a)) }
+#region expr_4
+expr_4[ast::expr] (memo):
+    | unary_expr
     | power_expr
-#endregion unary
+    | expr_5
 
-#region power
+unary_expr[ast::expr]:
+    | '+' a=(unary_expr | expr_5)  { ast::UnOp(ast::UAdd(), std::move(a)) }
+    | '-' a=(unary_expr | expr_5)  { ast::UnOp(ast::USub(), std::move(a)) }
+    | '~' a=(unary_expr | expr_5)  { ast::UnOp(ast::BitInv(), std::move(a)) }
+    | '&' a=(unary_expr | expr_5)  { ast::UnOp(ast::URef(), std::move(a)) }
+    | '*' a=(unary_expr | expr_5)  { ast::UnOp(ast::UStar(), std::move(a)) }
+
 power_expr[ast::expr]:
-    | a=primary_expr '**' b=factor_expr  { ast::BinOp(ast::Pow(), std::move(a), std::move(b)) }
+    | a=expr_5 '**' b=expr_5  { ast::BinOp(ast::Pow(), std::move(a), std::move(b)) }
+#endregion expr_4
+
+#region expr_5
+expr_5[ast::expr]:
+    | attr_expr
+    | call_expr
+    | subscript_expr
+    | expr_6
+
+attr_expr[ast::expr]:
+    | a=expr_5 '.' b=NAME  { ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
+    | a=expr_5 '::' b=NAME  { ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
+
+call_expr[ast::expr]:
+    | a=expr_5 '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
+
+subscript_expr[ast::expr]:
+    | a=expr_5 '[' b=call_args ']'  { ast::Subscript(std::move(a), std::move(b)) }
+
+# TODO: Actually implement
+call_args[ast::call_args] (memo):
+    | { ast::call_args(ast::make_sequence<ast::call_arg>(), nullptr, nullptr) }
+#endregion expr_5
+
+#region expr_6
+expr_6[ast::expr]:
     | primary_expr
-#endregion power
+#endregion expr_6
 #endregion operators
 
+#region primary_expr
 primary_expr[ast::expr]:
-    | a=primary_expr '.' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
-    | a=primary_expr '::' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
-    | a=primary_expr '[' b=call_args ']'  { ast::Subscript(std::move(a), std::move(b)) }
-    | a=primary_expr '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
-    | atom_expr
-
-atom_expr[ast::expr]:
     | a=name  { ast::Name(std::move(a)) }
     | a=NUMBER  { ast::Constant(util::variant_cast(a.get_number().value)) }
     | &STRING a=strings  { ast::Constant(std::move(a)) }
@@ -309,11 +354,8 @@ atom_expr[ast::expr]:
     | group_expr
     | tuple_expr
     | array_expr
+    | ctime_block_expr
     | block_expr
-
-# TODO: Actually implement
-call_args[ast::call_args] (memo):
-    | { ast::call_args(ast::make_sequence<ast::call_arg>(), nullptr, nullptr) }
 
 name[std::string]:
     | a=NAME  { a.get_name().value }
@@ -323,7 +365,7 @@ strings[std::string] (memo):
     | a=STRING+  { _concat_strings(a) }
 
 group_expr[ast::expr]:
-    | '(' a=expr ')'  { std::move(a) }
+    | '(' expr ')'
 
 tuple_expr[ast::expr]:
     | '(' ')'  { ast::Tuple(ast::make_sequence<ast::expr>()) }
@@ -333,9 +375,12 @@ array_expr[ast::expr]:
     | '[' ']'  { ast::Array(ast::make_sequence<ast::expr>()) }
     | '[' a=','.expr+ ','? ']'  { ast::Array(std::move(a)) }
 
-# TODO: Separate { ... } and ctime { ... } into separate rules?
+ctime_block_expr[ast::expr]:
+    | 'ctime' b=block_expr  { ast::CtimeBlock(std::move(b)) }
+
 block_expr[ast::expr] (memo):
-    | c='ctime'? '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v), bool(c)) }
+    | '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v)) }
+#endregion primary_expr
 #endregion expr
 
 # TODO: Finish!
