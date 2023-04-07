@@ -44,28 +44,35 @@ ast::maybe<T> _opt2maybe(std::optional<ast::field<T>> opt) {
         return nullptr;
     }
 }
+
+template <typename T>
+ast::sequence<T> _prepend1(ast::field<T> item, ast::sequence<T> seq) {
+    assert(item);
+    seq.insert(seq.begin(), std::move(*item));
+    return seq;
+}
+
 '''
 
 # This means all ast::* types are automatically wrapped into ast::field<>
 @wrap_ast_types
 
-start: cartridge
+start: file
 
-#region cartridge
-# TODO: Rework
-
-cartridge[ast::cartridge]:
-    | h=cartridge_header b=stmt* $  { ast::Cartridge(std::move(h), std::move(b)) }
-
-cartridge_header[std::string]:
-    | 'cartridge' n=name ';'  { std::move(n) }
-#endregion cartridge
+#region file
+file[ast::file]:
+    | b=stmt* $  { ast::File(std::move(b)) }
+#endregion file
 
 #region stmt
 stmt[ast::stmt] (memo):
+    | cartridge_header_stmt
     | assign_stmt
     | expr_stmt
     | pass_stmt
+
+cartridge_header_stmt[ast::stmt]:
+    | 'cartridge' n=name ';'  { ast::CartridgeHeader(std::move(n)) }
 
 assign_stmt[ast::stmt]:
     | a=expr op=assign_op b=expr ';'  { ast::Assign(std::move(a), std::move(b), std::move(op)) }
@@ -92,16 +99,14 @@ pass_stmt[ast::stmt]:
 
 #region defn
 defn[ast::defn] (memo):
-    | 'ctime' a=raw_defn  { ({ a->flag = ast::CTime(); a; }) }
-    | 'rtime' a=raw_defn  { ({ a->flag = ast::RTime(); a; }) }
-    | raw_defn
+    | f=xtime_flag a=raw_defn  { ({ a->flag = std::move(f); a; }) }
 
 raw_defn[ast::defn]:
     | var_def
     | func_def
     | impl_def
-    # | struct_def
-    # | ns_def
+    | struct_def
+    | ns_def
 
 type_annotation[ast::expr]:
     | ':' a=expr  { std::move(a) }
@@ -112,6 +117,7 @@ var_def[ast::defn]:
 func_def[ast::defn]:  # TODO: Allow only block_expr?
     | 'func' n=name? a=args_spec t=type_annotation? '=>' b=expr  { ast::FuncDef(_opt2maybe(std::move(n)), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
+#region args_spec
 # TODO: *args, **kwargs - or templated that, perhaps?
 # TODO: support for explicit argspec objects, if necessary
 args_spec[ast::args_spec]:
@@ -126,28 +132,26 @@ args_spec_nonempty[ast::args_spec]:
 # TODO: unused and fixed args?
 arg_spec[ast::arg_spec]:
     | n=name t=type_annotation d=('=' expr)?  { ast::arg_spec(std::move(n), std::move(t), _opt2maybe(std::move(d))) }
+#endregion args_spec
 
-defn_block[ast::sequence<ast::stmt>]:
-    | '{' b=stmt* '}'  { std::move(b) }
-
-# TODO: Allow 'namespace' as an alternative to 'impl'?
 impl_def[ast::defn]:
     | 'impl' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::nullopt, std::move(b)) }
     | 'impl' t=expr 'for' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::move(t), std::move(b)) }
+
+defn_block[ast::sequence<ast::stmt>]:
+    | '{' stmt* '}'
 
 # TODO: Forbid 'class' here?
 struct_def[ast::defn]:
     | ('class' | 'struct') n=name? a=args_spec  { ast::StructDef(_opt2maybe(std::move(n)), std::move(a)) }
 
-# TODO: ?
-#     | 'namespace' n=name b=defn_block
+ns_def[ast::defn]:
+    | 'ns' n=name
 #endregion defn
 
 #region flow
 flow[ast::flow] (memo):
-    | 'ctime' a=raw_flow  { ({ a->flag = ast::CTime(); a; }) }
-    | 'rtime' a=raw_flow  { ({ a->flag = ast::RTime(); a; }) }
-    | raw_flow
+    | f=xtime_flag a=raw_flow  { ({ a->flag = std::move(f); a; }) }
 
 raw_flow[ast::flow]:
     | if_flow
@@ -184,20 +188,23 @@ expr_or_unit[ast::expr]:
 expr[ast::expr] (memo):
     | defn_expr
     | flow_expr
-    | return_expr
-    | break_expr
-    | continue_expr
+    | keyword_expr
     | expr_0
 
-#region wrapped
+#region wrappers
 defn_expr[ast::expr]:
     | a=defn  { ast::Defn(std::move(a)) }
 
 flow_expr[ast::expr]:
     | a=flow  { ast::Flow(std::move(a)) }
-#endregion wrapped
+#endregion wrappers
 
-#region flow_ops
+#region keyword
+keyword_expr[ast::expr]:
+    | return_expr
+    | break_expr
+    | continue_expr
+
 return_expr[ast::expr]:
     | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
 
@@ -206,7 +213,7 @@ break_expr[ast::expr]:
 
 continue_expr[ast::expr]:
     | 'continue'  { ast::Continue() }
-#endregion flow_ops
+#endregion keyword
 
 #region operators
 #region expr_0
@@ -272,13 +279,19 @@ arithm_expr[ast::expr]:
     | product_expr
 
 sum_expr[ast::expr]:
-    | a=(sum_expr | product_expr) '+' b=product_expr  { ast::BinOp(ast::Add(), std::move(a), std::move(b)) }
-    | a=(sum_expr | product_expr) '-' b=product_expr  { ast::BinOp(ast::Sub(), std::move(a), std::move(b)) }
+    | a=(sum_expr | product_expr) o=sum_bin_op b=product_expr  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
+
+sum_bin_op[ast::bin_op]:
+    | '+'  { ast::Add() }
+    | '-'  { ast::Sub() }
 
 product_expr[ast::expr]:
-    | a=(product_expr | expr_4) '*' b=expr_4  { ast::BinOp(ast::Mul(), std::move(a), std::move(b)) }
-    | a=(product_expr | expr_4) '/' b=expr_4  { ast::BinOp(ast::Div(), std::move(a), std::move(b)) }
-    | a=(product_expr | expr_4) '%' b=expr_4  { ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
+    | a=(product_expr | expr_4) o=product_bin_op b=expr_4  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
+
+product_bin_op[ast::bin_op]:
+    | '*'  { ast::Mul() }
+    | '/'  { ast::Div() }
+    | '%'  { ast::Mod() }
 
 bitwise_expr[ast::expr]:
     | bitor_expr
@@ -296,8 +309,11 @@ bitxor_expr[ast::expr]:
     | a=(bitxor_expr | expr_4) '^' b=expr_4  { ast::BinOp(ast::BitXor(), std::move(a), std::move(b)) }
 
 shift_expr[ast::expr]:
-    | a=(shift_expr | expr_4) '<<' b=expr_4  { ast::BinOp(ast::LShift(), std::move(a), std::move(b)) }
-    | a=(shift_expr | expr_4) '>>' b=expr_4  { ast::BinOp(ast::RShift(), std::move(a), std::move(b)) }
+    | a=(shift_expr | expr_4) o=shift_bin_op b=expr_4  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
+
+shift_bin_op[ast::bin_op]:
+    | '<<'  { ast::LShift() }
+    | '>>'  { ast::RShift() }
 #endregion expr_3
 
 #region expr_4
@@ -307,11 +323,14 @@ expr_4[ast::expr] (memo):
     | expr_5
 
 unary_expr[ast::expr]:
-    | '+' a=(unary_expr | expr_5)  { ast::UnOp(ast::UAdd(), std::move(a)) }
-    | '-' a=(unary_expr | expr_5)  { ast::UnOp(ast::USub(), std::move(a)) }
-    | '~' a=(unary_expr | expr_5)  { ast::UnOp(ast::BitInv(), std::move(a)) }
-    | '&' a=(unary_expr | expr_5)  { ast::UnOp(ast::URef(), std::move(a)) }
-    | '*' a=(unary_expr | expr_5)  { ast::UnOp(ast::UStar(), std::move(a)) }
+    | o=unary_op a=(unary_expr | expr_5)  { ast::UnOp(std::move(o), std::move(a)) }
+
+unary_op[ast::unary_op]:
+    | '+'  { ast::UAdd() }
+    | '-'  { ast::USub() }
+    | '~'  { ast::BitInv() }
+    | '&'  { ast::URef() }
+    | '*'  { ast::UStar() }
 
 power_expr[ast::expr]:
     | a=expr_5 '**' b=expr_5  { ast::BinOp(ast::Pow(), std::move(a), std::move(b)) }
@@ -325,8 +344,8 @@ expr_5[ast::expr]:
     | expr_6
 
 attr_expr[ast::expr]:
-    | a=expr_5 '.' b=NAME  { ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
-    | a=expr_5 '::' b=NAME  { ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
+    | a=expr_5 '.' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
+    | a=expr_5 '::' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
 
 call_expr[ast::expr]:
     | a=expr_5 '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
@@ -345,27 +364,27 @@ expr_6[ast::expr]:
 #endregion expr_6
 #endregion operators
 
-#region primary_expr
+#region primary
 primary_expr[ast::expr]:
-    | a=name  { ast::Name(std::move(a)) }
     | a=NUMBER  { ast::Constant(util::variant_cast(a.get_number().value)) }
     | &STRING a=strings  { ast::Constant(std::move(a)) }
-    | '...'  { ast::Ellipsis() }
+    | '...'  { ast::Constant(/* Ellipsis, somehow... */) }
+    | var_ref_expr
     | group_expr
     | tuple_expr
     | array_expr
     | ctime_block_expr
     | block_expr
 
-name[std::string]:
-    | a=NAME  { a.get_name().value }
+var_ref_expr[ast::expr]:
+    | a=name  { ast::VarRef(std::move(a)) }
 
 # TODO: _concat_strings!
 strings[std::string] (memo):
     | a=STRING+  { _concat_strings(a) }
 
 group_expr[ast::expr]:
-    | '(' expr ')'
+    | '(' weak_expr ')'
 
 tuple_expr[ast::expr]:
     | '(' ')'  { ast::Tuple(ast::make_sequence<ast::expr>()) }
@@ -375,12 +394,35 @@ array_expr[ast::expr]:
     | '[' ']'  { ast::Array(ast::make_sequence<ast::expr>()) }
     | '[' a=','.expr+ ','? ']'  { ast::Array(std::move(a)) }
 
+# TODO: Maybe allow runtime blocks too?
 ctime_block_expr[ast::expr]:
     | 'ctime' b=block_expr  { ast::CtimeBlock(std::move(b)) }
 
 block_expr[ast::expr] (memo):
     | '{' b=stmt* v=expr_or_unit '}'  { ast::Block(std::move(b), std::move(v)) }
-#endregion primary_expr
+
+# To allow for both a::b::c and a::(123)::("abra" concat "cadabra")
+attr_name[ast::expr]:
+    | n=name  { ast::Constant(std::move(n)) }
+    | group_expr
+#endregion primary
+
+#region weak
+weak_expr[ast::expr]:
+    | infix_call_expr
+    | expr
+
+infix_call_expr[ast::expr]:
+    | a=expr_4 o=name b=expr_4  { ast::InfixCall(std::move(o), std::move(a), std::move(b)) }
+#endregion weak
 #endregion expr
 
-# TODO: Finish!
+#region utils
+name[std::string]:
+    | a=NAME  { a.get_name().value }
+
+xtime_flag[ast::xtime_flag]:
+    | 'ctime'  { ast::CTime() }
+    | 'rtime'  { ast::RTime() }
+    | { ast::DefaultTime() }
+#endregion utils

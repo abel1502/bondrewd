@@ -4,18 +4,19 @@
 
 module Bondrewd {
     -- TODO: Very much incomplete
-    cartridge = Cartridge(identifier name, stmt* body)
+    file = File(stmt* body)
 
-    -- TODO: More data for classdef and impldef
     stmt = Assign(expr target, expr value, assign_op op)
+         | CartridgeHeader(identifier name)
          | Expr(expr value)
          | Pass
 
-    -- TODO: allow marking any expression as ctime?
-    expr = Name(identifier value)
+    -- TODO: Allow arbitrary exprs for attribute access, not just identifiers
+    expr = VarRef(identifier value)
          | Constant(constant value)
          | Attribute(expr value, identifier attr, attr_op type)
          | Call(expr func, call_args args)
+         | InfixCall(identifier name, expr left, expr right)
          | Subscript(expr value, call_args args)
          | CtimeBlock(expr body)  -- body is always a Block
          | Block(stmt* body, expr value)
@@ -34,7 +35,8 @@ module Bondrewd {
     defn = VarDef(identifier name, expr? type, expr? value, bool mut)
          | ImplDef(expr cls, expr? trait, stmt* body)
          | FuncDef(identifier? name, args_spec args, expr? return_type, expr body)  -- TODO: Forbid deduction of return type?
-         | StructDef(identifier? name, args_spec args)
+         | StructDef(identifier? name, args_spec fields)
+         | NsDef(identifier* parents, identifier name)
         attributes (xtime_flag flag)
         extras """
         defn(auto &&value) :
