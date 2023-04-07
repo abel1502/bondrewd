@@ -104,35 +104,16 @@ defn[ast::defn] (memo):
 raw_defn[ast::defn]:
     | var_def
     | func_def
-    | impl_def
     | struct_def
+    | impl_def
     | ns_def
-
-type_annotation[ast::expr]:
-    | ':' a=expr  { std::move(a) }
+    | template_def
 
 var_def[ast::defn]:
     | 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
 
 func_def[ast::defn]:  # TODO: Allow only block_expr?
-    | 'func' n=name? a=args_spec t=type_annotation? '=>' b=expr  { ast::FuncDef(_opt2maybe(std::move(n)), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
-
-#region args_spec
-# TODO: *args, **kwargs - or templated that, perhaps?
-# TODO: support for explicit argspec objects, if necessary
-args_spec[ast::args_spec]:
-    | '(' a=args_spec_nonempty ','? ')'  { std::move(a) }
-    | '(' ')'  { ast::args_spec(ast::make_sequence<ast::arg_def>(), false) }
-
-args_spec_nonempty[ast::args_spec]:
-    | "self" ',' a=','.arg_spec+  { ast::args_spec(std::move(a), true) }
-    | "self"  { ast::args_spec(ast::make_sequence<ast::arg_def>(), true) }
-    | a=','.arg_spec+  { ast::args_spec(std::move(a), false) }
-
-# TODO: unused and fixed args?
-arg_spec[ast::arg_spec]:
-    | n=name t=type_annotation d=('=' expr)?  { ast::arg_spec(std::move(n), std::move(t), _opt2maybe(std::move(d))) }
-#endregion args_spec
+    | 'func' n=name? '(' a=args_spec ')' t=type_annotation? '=>' b=expr  { ast::FuncDef(_opt2maybe(std::move(n)), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
 impl_def[ast::defn]:
     | 'impl' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::nullopt, std::move(b)) }
@@ -147,6 +128,26 @@ struct_def[ast::defn]:
 
 ns_def[ast::defn]:
     | 'ns' n=name
+
+# TODO: ?
+template_def[ast::defn]:
+    | 'template' '[' a=args_spec ']' b=defn  { ast::TemplateDef(std::move(a), std::move(b)) }
+
+#region args_spec
+# TODO: *args, **kwargs - or templated that, perhaps?
+# TODO: support for explicit argspec objects, if necessary
+args_spec[ast::args_spec]:
+    | a=args_spec_nonempty ','?  { std::move(a) }
+    | { ast::args_spec(ast::make_sequence<ast::arg_def>(), false) }
+
+args_spec_nonempty[ast::args_spec]:
+    | "self" a=(',' arg_spec)*  { ast::args_spec(std::move(a), true) }
+    | a=','.arg_spec+  { ast::args_spec(std::move(a), false) }
+
+# TODO: unused and fixed args?
+arg_spec[ast::arg_spec]:
+    | n=name t=type_annotation d=('=' expr)?  { ast::arg_spec(std::move(n), std::move(t), _opt2maybe(std::move(d))) }
+#endregion args_spec
 #endregion defn
 
 #region flow
@@ -174,9 +175,7 @@ loop_flow[ast::flow]:
 flow_block[ast::expr]:
     | block_expr
     | flow_expr
-    | return_expr
-    | break_expr
-    | continue_expr
+    | keyword_expr
 #endregion flow
 
 #region expr
@@ -425,4 +424,7 @@ xtime_flag[ast::xtime_flag]:
     | 'ctime'  { ast::CTime() }
     | 'rtime'  { ast::RTime() }
     | { ast::DefaultTime() }
+
+type_annotation[ast::expr]:
+    | ':' a=expr  { std::move(a) }
 #endregion utils
