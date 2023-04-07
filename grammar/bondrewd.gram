@@ -4,7 +4,6 @@
 # TODO: Sequence helpers!
 # TODO: Helpers to change expr_context. Then also add expr_context to the AST
 # TODO: Empty rules cause issues with how left-recursion is handled. Fix it!
-# TODO: Templates!
 
 @subheader '''\
 #include <string>
