@@ -125,8 +125,19 @@ defn_block[ast::sequence<ast::stmt>]:
 struct_def[ast::defn]:
     | ('class' | 'struct') n=name? a=args_spec  { ast::StructDef(_opt2maybe(std::move(n)), std::move(a)) }
 
+# TODO: Allow actual names!
 ns_def[ast::defn]:
-    | 'ns' n=name
+    | 'ns' ns_spec
+
+#region ns_spec
+# TODO: Represent "cartridge::" somehow other than a string?
+ns_spec[ast::defn]:
+    | 'cartridge' '::' a=ns_spec_raw  { ast::NsDef(_prepend1(std::move("cartridge"), std::move(a))) }
+    | a=ns_spec_raw  { ast::NsDef(std::move(a)) }
+
+ns_spec_raw[ast::sequence<identifier>]:
+    | a='::'.name+  { std::move(a) }
+#endregion ns_spec
 
 # TODO: ?
 template_def[ast::defn]:

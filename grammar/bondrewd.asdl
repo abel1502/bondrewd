@@ -36,7 +36,7 @@ module Bondrewd {
          | ImplDef(expr cls, expr? trait, stmt* body)
          | FuncDef(identifier? name, args_spec args, expr? return_type, expr body)  -- TODO: Forbid deduction of return type?
          | StructDef(identifier? name, args_spec fields)
-         | NsDef(identifier* parents, identifier name)
+         | NsDef(identifier* names)
          | TemplateDef(args_spec args, defn body)
         attributes (xtime_flag flag)
         extras """

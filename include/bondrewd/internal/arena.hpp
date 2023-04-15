@@ -337,7 +337,7 @@ concept arena_ptr_at = std::same_as<std::decay_t<T>, arena_ptr<typename T::eleme
 }  // namespace bondrewd::util
 
 
-#pragma region std::swap
+#pragma region std specializations
 namespace std {
 
 
@@ -347,5 +347,13 @@ void swap(bondrewd::util::arena_ptr<T, arena> &a, bondrewd::util::arena_ptr<T, a
 }
 
 
+template <typename T, bondrewd::util::Arena *arena>
+struct hash<bondrewd::util::arena_ptr<T, arena>> {
+    size_t operator()(const bondrewd::util::arena_ptr<T, arena> &x) const {
+        return std::hash<T *>()(x.get());
+    }
+};
+
+
 }  // namespace std
-#pragma endregion std::swap
+#pragma endregion std specializations
