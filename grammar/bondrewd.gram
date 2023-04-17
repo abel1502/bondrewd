@@ -185,7 +185,7 @@ loop_flow[ast::flow]:
 flow_block[ast::expr]:
     | block_expr
     | flow_expr
-    | keyword_expr
+    | flow_control_expr
 #endregion flow
 
 #region expr
@@ -197,7 +197,6 @@ expr_or_unit[ast::expr]:
 expr[ast::expr] (memo):
     | defn_expr
     | flow_expr
-    | keyword_expr
     | expr_0
 
 #region wrappers
@@ -209,19 +208,6 @@ flow_expr[ast::expr]:
 #endregion wrappers
 
 #region keyword
-keyword_expr[ast::expr]:
-    | return_expr
-    | break_expr
-    | continue_expr
-
-return_expr[ast::expr]:
-    | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
-
-break_expr[ast::expr]:
-    | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
-
-continue_expr[ast::expr]:
-    | 'continue'  { ast::Continue() }
 #endregion keyword
 
 #region operators
@@ -241,10 +227,31 @@ or_expr[ast::expr]:
 #region expr_1
 expr_1[ast::expr]:
     | not_expr
+    | expand_expr
+    | flow_control_expr
     | expr_2
 
 not_expr[ast::expr]:
     | 'not' a=expr_1  { ast::UnaryOp(ast::Not(), std::move(a)) }
+
+# TODO: Maybe add other expand rules?
+#       For statements, at least?
+expand_expr[ast::expr]:
+    | 'expand' a=expr_1  { ast::Expand(std::move(a)) }
+
+flow_control_expr[ast::expr]:
+    | return_expr
+    | break_expr
+    | continue_expr
+
+return_expr[ast::expr]:
+    | 'return' a=expr_or_unit  { ast::Return(std::move(a)) }
+
+break_expr[ast::expr]:
+    | 'break' a=expr_or_unit  { ast::Break(std::move(a)) }
+
+continue_expr[ast::expr]:
+    | 'continue'  { ast::Continue() }
 #endregion expr_1
 
 #region expr_2
@@ -349,6 +356,7 @@ power_expr[ast::expr]:
 expr_5[ast::expr]:
     | attr_expr
     | call_expr
+    | macro_call_expr
     | subscript_expr
     | expr_6
 
@@ -359,12 +367,39 @@ attr_expr[ast::expr]:
 call_expr[ast::expr]:
     | a=expr_5 '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
 
+macro_call_expr[ast::expr]:
+    | a=expr_5 '!' b=token_stream_delim  { ast::MacroCall(std::move(a), std::move(b)) }
+
 subscript_expr[ast::expr]:
     | a=expr_5 '[' b=call_args ']'  { ast::Subscript(std::move(a), std::move(b)) }
 
 # TODO: Actually implement
 call_args[ast::call_args] (memo):
     | { ast::call_args(ast::make_sequence<ast::call_arg>(), nullptr, nullptr) }
+
+token_stream[ast::expr]:
+    | token_stream_delim
+    | token_stream_no_parens
+
+token_stream_delim[ast::expr]:
+    | '(' ~ a=token_stream* ')'  { ast::TokenStream(/* ??? */) }
+    | '[' ~ a=token_stream* ']'  { ast::TokenStream(/* ??? */) }
+    | '{' ~ a=token_stream* '}'  { ast::TokenStream(/* ??? */) }
+
+token_stream_no_parens[ast::expr]:
+    | (!any_paren any_token)+  { ast::TokenStream(/* ??? */) }
+
+any_paren:
+    | '(' | ')'
+    | '[' | ']'
+    | '{' | '}'
+
+any_token[lex::Token]:
+    | NAME
+    | NUMBER
+    | STRING
+    | KEYWORD
+    | PUNCT
 #endregion expr_5
 
 #region expr_6

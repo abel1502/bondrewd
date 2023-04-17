@@ -16,6 +16,7 @@ module Bondrewd {
          | Constant(constant value)
          | Attribute(expr value, identifier attr, attr_op type)
          | Call(expr func, call_args args)
+         | MacroCall(expr func, expr token_stream)
          | InfixCall(identifier name, expr left, expr right)
          | Subscript(expr value, call_args args)
          | CtimeBlock(expr body)  -- body is always a Block
@@ -29,8 +30,10 @@ module Bondrewd {
          | Return(expr value)
          | Break(expr value)
          | Continue()
+         | Expand(expr value)
          | Tuple(expr* values)
          | Array(expr* values)
+         | TokenStream(token* tokens)
     
     defn = VarDef(identifier name, expr? type, expr? value, bool mut)
          | ImplDef(expr cls, expr? trait, stmt* body)
@@ -82,5 +85,7 @@ module Bondrewd {
     call_arg = (identifier? name, expr value)
 
     xtime_flag = CTime | RTime | DefaultTime
+
+    token = "lex::Token"
 
 }

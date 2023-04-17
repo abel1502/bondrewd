@@ -308,7 +308,7 @@ class CXXActionDeductionVisitor(GrammarVisitor):
         significant: bool = self.visit(node.rhs)
         
         if not significant:
-            assert node.type is None
+            assert node.type is None, f"Bad rule {node!r}: typed but not significant"
             node.type = "std::monostate"
     
     def visit_Rhs(self, node: Rhs) -> bool:
@@ -995,7 +995,9 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     @contextmanager
     def nest_conditions(self, node: Alt) -> typing.Generator[None, None, None]:
         for item in node.items:
-            call = self.emit_call(item)
+            call: FunctionCall | None = self.emit_call(item)
+            if call is None:
+                continue
             
             assert call.assigned_variable is not None, "Unexpected variable-less call!"
             cond: str = call.assigned_variable
@@ -1060,7 +1062,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         
         if call.assigned_variable == "_cut_var":
             self.print(f"_cut_var = {call};")
-            return
+            return None
         
         if not call.assigned_variable:
             call.assigned_variable = "_tmpvar"
