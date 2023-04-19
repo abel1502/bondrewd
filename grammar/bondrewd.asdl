@@ -78,7 +78,7 @@ module Bondrewd {
 
     args_spec = (arg_spec* args, bool with_self)
 
-    arg_spec = (identifier name, expr type, expr? default)
+    arg_spec = (identifier name, expr type, expr? default_value)
      
     call_args = (call_arg* args, identifier? vararg, identifier? kwarg)
 
