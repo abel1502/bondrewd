@@ -109,10 +109,10 @@ raw_defn[ast::defn]:
     | template_def
 
 var_def[ast::defn]:
-    | 'var' n=name t=type_annotation? v=['=' a=expr { a }] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
+    | 'var' n=name t=type_annotation? v=['=' expr] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
 
 func_def[ast::defn]:  # TODO: Allow only block_expr?
-    | 'func' n=name? '(' a=args_spec ')' t=type_annotation? '=>' b=expr  { ast::FuncDef(_opt2maybe(std::move(n)), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+    | 'func' n=name? '(' a=args_spec ')' t=type_annotation? '=>' b=expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
 
 impl_def[ast::defn]:
     | 'impl' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::nullopt, std::move(b)) }
@@ -123,7 +123,7 @@ defn_block[ast::sequence<ast::stmt>]:
 
 # TODO: Forbid 'class' here?
 struct_def[ast::defn]:
-    | ('class' | 'struct') n=name? a=args_spec  { ast::StructDef(_opt2maybe(std::move(n)), std::move(a)) }
+    | ('class' | 'struct') n=name? a=args_spec  { ast::StructDef(std::move(n), std::move(a)) }
 
 # TODO: Allow actual names!
 ns_def[ast::defn]:
@@ -135,7 +135,7 @@ ns_spec[ast::defn]:
     | 'cartridge' '::' a=ns_spec_raw  { ast::NsDef(_prepend1(std::move("cartridge"), std::move(a))) }
     | a=ns_spec_raw  { ast::NsDef(std::move(a)) }
 
-ns_spec_raw[ast::sequence<identifier>]:
+ns_spec_raw[ast::sequence<ast::identifier>]:
     | a='::'.name+  { std::move(a) }
 #endregion ns_spec
 
@@ -207,9 +207,6 @@ flow_expr[ast::expr]:
     | a=flow  { ast::Flow(std::move(a)) }
 #endregion wrappers
 
-#region keyword
-#endregion keyword
-
 #region operators
 #region expr_0
 expr_0[ast::expr] (memo):
@@ -232,7 +229,7 @@ expr_1[ast::expr]:
     | expr_2
 
 not_expr[ast::expr]:
-    | 'not' a=expr_1  { ast::UnaryOp(ast::Not(), std::move(a)) }
+    | 'not' a=expr_1  { ast::UnOp(ast::Not(), std::move(a)) }
 
 # TODO: Maybe add other expand rules?
 #       For statements, at least?
@@ -297,14 +294,14 @@ arithm_expr[ast::expr]:
 sum_expr[ast::expr]:
     | a=(sum_expr | product_expr) o=sum_bin_op b=product_expr  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
 
-sum_bin_op[ast::bin_op]:
+sum_bin_op[ast::binary_op]:
     | '+'  { ast::Add() }
     | '-'  { ast::Sub() }
 
 product_expr[ast::expr]:
     | a=(product_expr | expr_4) o=product_bin_op b=expr_4  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
 
-product_bin_op[ast::bin_op]:
+product_bin_op[ast::binary_op]:
     | '*'  { ast::Mul() }
     | '/'  { ast::Div() }
     | '%'  { ast::Mod() }
@@ -327,7 +324,7 @@ bitxor_expr[ast::expr]:
 shift_expr[ast::expr]:
     | a=(shift_expr | expr_4) o=shift_bin_op b=expr_4  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
 
-shift_bin_op[ast::bin_op]:
+shift_bin_op[ast::binary_op]:
     | '<<'  { ast::LShift() }
     | '>>'  { ast::RShift() }
 #endregion expr_3

@@ -994,6 +994,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
     
     @contextmanager
     def nest_conditions(self, node: Alt) -> typing.Generator[None, None, None]:
+        closing_braces: int = 0
+        
         for item in node.items:
             call: FunctionCall | None = self.emit_call(item)
             if call is None:
@@ -1003,6 +1005,8 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
             cond: str = call.assigned_variable
             if call.force_true:
                 cond = "true"
+            
+            closing_braces += 1
             
             line: str = f"if ({cond}) {{"
             if call.assigned_variable.startswith("_user_opt_"):
@@ -1024,7 +1028,7 @@ class CXXParserGenerator(ParserGenerator, GrammarVisitor):
         else:
             yield
         
-        for _ in node.items:
+        for _ in range(closing_braces):
             self.print("}")
     
     def _unwrap_template(self, tpl: str, prefixes: str | tuple[str]) -> str:

@@ -624,7 +624,7 @@ class CustomGrammarParser(Parser):
 
     @memoize
     def target_atom(self) -> Optional[str]:
-        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | namespaced_name | NAME | NUMBER | STRING | ("?" | ":" | "&&" | "&") | !"}" !"]" OP
+        # target_atom: "{" ~ target_atoms? "}" | "[" ~ target_atoms? "]" | namespaced_name | NAME | NUMBER | STRING | ("?" | ":" | "&&" | "&") | "/" "*" | "*" "/" | !"}" !"]" OP
         mark = self._mark()
         cut = False
         if (
@@ -678,6 +678,20 @@ class CustomGrammarParser(Parser):
             (s := self._tmp_1())
         ):
             return s . string;
+        self._reset(mark)
+        if (
+            (self.expect("/"))
+            and
+            (self.expect("*"))
+        ):
+            return "/*";
+        self._reset(mark)
+        if (
+            (self.expect("*"))
+            and
+            (self.expect("/"))
+        ):
+            return "*/";
         self._reset(mark)
         if (
             (self.negative_lookahead(self.expect, "}"))
