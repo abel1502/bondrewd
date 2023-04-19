@@ -1,7 +1,7 @@
 #pragma once
 
 #include <bondrewd/internal/common.hpp>
-#include <bondrewd/ctime/object_ptr.hpp>
+#include <bondrewd/ctime/object.hpp>
 
 #include <unordered_map>
 #include <string>
@@ -34,21 +34,13 @@ public:
     // TODO: Handle missing keys.
 
     #pragma region get
-    object_ptr &get(std::string_view key) {
-        return members_str.find(key)->second;
-    }
-
-    const object_ptr &get(std::string_view key) const {
+    object_ptr get(std::string_view key) {
         return members_str.find(key)->second;
     }
 
     // TODO: Handle strings as objects.
     
     object_ptr &get(object_ptr key) {
-        return members_obj.at(key);
-    }
-
-    const object_ptr &get(object_ptr key) const {
         return members_obj.at(key);
     }
     #pragma endregion get

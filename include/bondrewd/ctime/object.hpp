@@ -1,8 +1,6 @@
 #pragma once
 
 #include <bondrewd/internal/common.hpp>
-#include <bondrewd/ctime/object_ptr.hpp>
-#include <bondrewd/ctime/scope.hpp>
 
 #include <concepts>
 #include <type_traits>
@@ -120,7 +118,8 @@ public:
     #pragma endregion API
 
     #pragma region Virtual API
-    // TODO
+    // TODO: Decide and implement!
+    // TODO: Minimal interface here, and special helpers later
     #pragma endregion Virtual API
 
 protected:
