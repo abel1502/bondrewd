@@ -106,7 +106,6 @@ raw_defn[ast::defn]:
     | struct_def
     | impl_def
     | ns_def
-    | template_def
 
 var_def[ast::defn]:
     | 'var' n=name t=type_annotation? v=['=' expr] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
@@ -138,10 +137,6 @@ ns_spec[ast::defn]:
 ns_spec_raw[ast::sequence<ast::identifier>]:
     | a='::'.name+  { std::move(a) }
 #endregion ns_spec
-
-# TODO: ?
-template_def[ast::defn]:
-    | 'template' '[' a=args_spec ']' b=defn  { ast::TemplateDef(std::move(a), std::move(b)) }
 
 #region args_spec
 # TODO: *args, **kwargs - or templated that, perhaps?
@@ -225,6 +220,7 @@ or_expr[ast::expr]:
 expr_1[ast::expr]:
     | not_expr
     | expand_expr
+    | pass_spec_expr
     | flow_control_expr
     | expr_2
 
@@ -235,6 +231,11 @@ not_expr[ast::expr]:
 #       For statements, at least?
 expand_expr[ast::expr]:
     | 'expand' a=expr_1  { ast::Expand(std::move(a)) }
+
+pass_spec_expr[ast::expr]:
+    | 'ref' a=expr_1  { ast::PassSpec(ast::ByRef(), std::move(a)) }
+    | 'move' a=expr_1  { ast::PassSpec(ast::ByMove(), std::move(a)) }
+    | 'copy' a=expr_1  { ast::PassSpec(ast::ByCopy(), std::move(a)) }
 
 flow_control_expr[ast::expr]:
     | return_expr

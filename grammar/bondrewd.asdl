@@ -34,6 +34,7 @@ module Bondrewd {
          | Tuple(expr* values)
          | Array(expr* values)
          | TokenStream(token* tokens)
+         | PassSpec(pass_kind kind, expr value)
     
     defn = VarDef(identifier name, expr? type, expr? value, bool mut)
          | ImplDef(expr cls, expr? trait, stmt* body)
@@ -85,6 +86,8 @@ module Bondrewd {
     call_arg = (identifier? name, expr value)
 
     xtime_flag = CTime | RTime | DefaultTime
+
+    pass_kind = ByRef | ByMove | ByCopy
 
     token = "lex::Token"
 
