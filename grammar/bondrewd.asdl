@@ -52,10 +52,10 @@ module Bondrewd {
          | For(identifier var, expr iter, expr body, expr orelse)
          | While(expr cond, expr body, expr? orelse)
          | Loop(expr body)
-        attributes (xtime_flag flag)
+        attributes (bool unwrap)
         extras """
         flow(auto &&value) :
-            flow(std::forward<decltype(value)>(value), DefaultTime()) {}
+            flow(std::forward<decltype(value)>(value), false) {}
         """
 
     -- TODO: Currently, enum-like values are represented by empty variants (good),

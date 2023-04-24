@@ -110,8 +110,12 @@ raw_defn[ast::defn]:
 var_def[ast::defn]:
     | 'var' n=name t=type_annotation? v=['=' expr] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
 
-func_def[ast::defn]:  # TODO: Allow only block_expr?
-    | 'func' n=name? '(' a=args_spec ')' t=type_annotation? '=>' b=expr  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+func_def[ast::defn]:
+    | 'func' n=name? '(' a=args_spec ')' t=type_annotation? b=func_body  { ast::FuncDef(std::move(n), std::move(a), _opt2maybe(std::move(t)), std::move(b)) }
+
+func_body[ast::expr]:
+    | '=>' expr
+    | block_expr
 
 impl_def[ast::defn]:
     | 'impl' c=expr b=defn_block  { ast::ImplDef(std::move(c), std::nullopt, std::move(b)) }
@@ -157,7 +161,8 @@ arg_spec[ast::arg_spec]:
 
 #region flow
 flow[ast::flow] (memo):
-    | f=xtime_flag a=raw_flow  { ({ a->flag = std::move(f); a; }) }
+    | 'unwrap' a=raw_flow  { ({ a->unwrap = true; a; }) }
+    | raw_flow
 
 raw_flow[ast::flow]:
     | if_flow
