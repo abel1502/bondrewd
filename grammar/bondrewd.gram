@@ -296,6 +296,7 @@ expr_3[ast::expr]:
 arithm_expr[ast::expr]:
     | sum_expr
     | product_expr
+    | modulo_expr
 
 sum_expr[ast::expr]:
     | a=(sum_expr | product_expr) o=sum_bin_op b=product_expr  { ast::BinOp(std::move(o), std::move(a), std::move(b)) }
@@ -310,7 +311,9 @@ product_expr[ast::expr]:
 product_bin_op[ast::binary_op]:
     | '*'  { ast::Mul() }
     | '/'  { ast::Div() }
-    | '%'  { ast::Mod() }
+
+modulo_expr[ast::expr]:
+    | a=expr_4 '%' b=expr_4  { ast::BinOp(ast::Mod(), std::move(a), std::move(b)) }
 
 bitwise_expr[ast::expr]:
     | bitor_expr
