@@ -14,7 +14,8 @@ module Bondrewd {
     -- TODO: Allow arbitrary exprs for attribute access, not just identifiers
     expr = VarRef(identifier value)
          | Constant(constant value)
-         | Attribute(expr value, identifier attr, attr_op type)
+         | DotAttribute(expr value, identifier attr)
+         | ColonAttribute(expr value, identifier attr)
          | Call(expr func, call_args args)
          | MacroCall(expr func, expr token_stream)
          | InfixCall(identifier name, expr left, expr right)
@@ -72,8 +73,6 @@ module Bondrewd {
     unary_op = BitInv | Not | UAdd | USub | URef | UStar
 
     cmp_op = Eq | NotEq | Lt | LtE | Gt | GtE | In | NotIn
-
-    attr_op = AttrInst | AttrStatic
 
     expr_context = Load | Store  -- TODO: ? | Del
 

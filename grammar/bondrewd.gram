@@ -357,15 +357,18 @@ power_expr[ast::expr]:
 
 #region expr_5
 expr_5[ast::expr]:
-    | attr_expr
+    | dot_attr_expr
+    | colon_attr_expr
     | call_expr
     | macro_call_expr
     | subscript_expr
     | expr_6
 
-attr_expr[ast::expr]:
-    | a=expr_5 '.' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrInst()) }
-    | a=expr_5 '::' b=name  { ast::Attribute(std::move(a), std::move(b), ast::AttrStatic()) }
+dot_attr_expr[ast::expr]:
+    | a=expr_5 '.' b=name  { ast::DotAttribute(std::move(a), std::move(b)) }
+
+colon_attr_expr[ast::expr]:
+    | a=expr_5 '::' b=name  { ast::ColonAttribute(std::move(a), std::move(b)) }
 
 call_expr[ast::expr]:
     | a=expr_5 '(' b=call_args ')'  { ast::Call(std::move(a), std::move(b)) }
