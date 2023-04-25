@@ -1,5 +1,6 @@
 #pragma once
 
+#if 0  // Disabled for now
 #include <bondrewd/internal/common.hpp>
 #include <bondrewd/ctime/object.hpp>
 
@@ -81,3 +82,4 @@ protected:
 
 
 }  // namespace bondrewd::ctime
+#endif

@@ -257,13 +257,14 @@ public:
     /// `is_static` is true for `::`, false for `.`.
     virtual object_ptr get_attr(object_ptr key, bool is_static) const;
 
-    // TODO: Decide on and add some methods for setting and deleting attrs
+    // TODO: Decide on and add some methods for setting and deleting attrs?
     #pragma endregion Virtual API
 
 protected:
     #pragma region Fields
     size_t ref_cnt = 1;
     object_ptr type;
+    // TODO: Move to TypeMeta or something!
     // Note: The traits stored here don't affect the object itself,
     //       but those for which it is the type!
     // TODO: Optimize for objects without the `type` trait
@@ -382,7 +383,7 @@ struct std::hash<bondrewd::ctime::object_ptr> {
     }
 };
 
-template <objectlike To>
+template <bondrewd::ctime::objectlike To>
 struct std::hash<bondrewd::ctime::object_ptr_to<To>> {
     size_t operator()(const object_ptr_to<To> &ptr) const noexcept {
         return std::hash<To *>()(ptr.get());
