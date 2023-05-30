@@ -12,6 +12,9 @@ compile-time metaprogramming capabilities, while still being as fast as C++
 when compiled. The language is inspired primarily by Python and Rust. The title
 itself is a reference to Made in Abyss, a Japanese manga and anime series.
 
+The source code of the project can be found on
+[GitHub](https://github.com/abel1502/bondrewd).
+
 ```{note}
 At the moment, the language is under active development. Anything in this
 documentation may change at any time.
