@@ -171,46 +171,6 @@ public:
 #pragma endregion object_ptr_to
 
 
-#pragma region TraitSet
-/// This is a container that stores the traits implemented for an object.
-/// The keys in the maps are trait objects, and the values are the impl objects.
-class TraitSet {
-public:
-    #pragma region Constructors
-    TraitSet() = default;
-    #pragma endregion Constructors
-
-    #pragma region Service constructors
-    TraitSet(const TraitSet &) = delete;
-    TraitSet(TraitSet &&) = default;
-    TraitSet &operator=(const TraitSet &) = delete;
-    TraitSet &operator=(TraitSet &&) = default;
-    #pragma endregion Service constructors
-
-    #pragma region API
-    /// Note: nullptrs should only be cached if an explicit negative impl is given.
-    void add_trait(object_ptr trait, object_ptr impl);
-
-    /// Note: see add_traits.
-    /// This method is const, because weak_traits is a mutable cache
-    void add_weak_trait(object_ptr trait, object_ptr impl) const;
-
-    /// Note: Doesn't check for non-cached templated impls.
-    /// Returns nullptr if the trait is not implemented.
-    object_ptr get_trait(object_ptr trait) const;
-    #pragma endregion API
-
-protected:
-    #pragma region Fields
-    // TODO: Use weak pointers as a small optimization, perhaps?
-    std::hash_map<object_ptr, object_ptr> traits{};
-    mutable std::hash_map<object_ptr, object_ptr> weak_traits{};
-    #pragma endregion Fields
-
-};
-#pragma endregion TraitSet
-
-
 #pragma region Object
 class Object {
 public:
@@ -238,19 +198,8 @@ public:
     }
 
     /// Returns the trait implementation for the given trait.
-    /// If a template implementation is found, it is  also cached as a weak trait.
-    /// Note that the queried traits do not affect this object,
-    /// but those for which it is the type. If you're interested
-    /// in the traits that would affect this object, use
-    /// `get_object_trait_impl` instead.
-    virtual object_ptr get_provided_trait_impl(object_ptr trait) const;
-
-    /// Returns the trait implementation for the given trait.
     /// The returned implementation is effective for this object.
-    object_ptr get_object_trait_impl(object_ptr trait) const {
-        assert(type);
-        return type->get_provided_trait_impl(trait);
-    }
+    object_ptr get_effective_trait_impl(object_ptr trait) const;
 
     /// Queries an attribute on this object. By default this
     /// refers to the corresponding trait implementation.
@@ -258,17 +207,12 @@ public:
     virtual object_ptr get_attr(object_ptr key, bool is_static) const;
 
     // TODO: Decide on and add some methods for setting and deleting attrs?
-    #pragma endregion Virtual API
+    #pragma endregion API
 
 protected:
     #pragma region Fields
     size_t ref_cnt = 1;
     object_ptr type;
-    // TODO: Move to TypeMeta or something!
-    // Note: The traits stored here don't affect the object itself,
-    //       but those for which it is the type!
-    // TODO: Optimize for objects without the `type` trait
-    TraitSet traits{};
     #pragma endregion Fields
 
     #pragma region Constructor
