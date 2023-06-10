@@ -12,6 +12,7 @@ is inherently limited to values within a single type.
 A trait may be considered as a category of types, as well as some functionality
 associated with them. A trait has a set of _slots_ (which respresent the
 associated functionality).
+% TODO: Elaborate!
 
 An object is said to satisfy a trait if the trait is implemented for its type.
 An object is a type if it satisfies the `Type` trait. An object is a trait if
@@ -35,23 +36,6 @@ refer to the type of a type or a trait.
 : This trait is implemented for all types. It has no slots. It's used to
   represent the most general type constraint.
 
-`GetAttribute`
-: This trait implements the `.` operator in read context.
-
-`SetAttribute`
-: This trait implements the `.` operator in write context.
-
-`GetMember`
-: This trait implements the `::` operator in read context.
-
-`SetMember`
-: This trait implements the `::` operator in write context.
-
-% TODO: `GetItem`, `SetItem`
-
-`Call`
-: This trait implements the function call (`()`) operator.
-
-% TODO: ...
+% TODO: More!
 
 _Unfinished..._

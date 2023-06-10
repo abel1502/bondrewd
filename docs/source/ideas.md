@@ -457,3 +457,49 @@ template Smth3[T: type] => impl class () {};
 template do_smth4[T: type] => func () => {};
 
 ```
+
+```{code-block} bondrewd
+:caption: "Reference implementation for the core traits"
+
+impl ns std {
+
+trait Type: Hash + Eq + Copy {
+    var NameType: Type.with(Hash) = string;
+
+    func get_name(&self) -> Self::NameType;
+};
+
+trait Trait {
+    func get_impl_for(&self, type: &Type): Option[TraitImpl[Self]];
+
+    func get_slots(&self) -> TraitSlots;
+};
+
+// TODO: TraitImpl, TraitSlots, ...?
+
+}
+
+```
+
+```{code-block} bondrewd
+:caption: "Potential syntax for file-level configuration"
+
+// 1. A file statement with some attributes
+@std::use_reference_type(std::permission_ref)
+file;
+
+// 2. A file block?
+file (
+    reference_type = std::permission_ref;
+);
+
+// 3. 'Outer' attributes?
+@!std::use_reference_type(std::permission_ref);
+// or
+@^std::use_reference_type(std::permission_ref);
+
+// Note: I'd potentially like these to be able to influence even the parser
+// used for the file, but I'm not sure how that should work across different
+// syntaxes...
+
+```
