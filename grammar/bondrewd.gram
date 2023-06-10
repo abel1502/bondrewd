@@ -107,6 +107,7 @@ raw_defn[ast::defn]:
     | impl_def
     | ns_def
 
+# TODO: Allow 'let' too
 var_def[ast::defn]:
     | 'var' n=name t=type_annotation? v=['=' expr] ';'  { ast::VarDef(std::move(n), _opt2maybe(std::move(t)), _opt2maybe(std::move(v)), true) }
 

@@ -21,7 +21,8 @@ MOVE                    "move"
 COPY                    "copy"
 MUT                     "mut"
 VAR                     "var"
-VAL                     "val"
+LET                     "let"
+# VAL                     "val" 
 FUNC                    "func"
 # TODO: I don't think I need "class" anymore, but maybe I should still keep it reserved?..
 CLASS                   "class"
@@ -40,5 +41,7 @@ EXPORT                  "export"
 PUBLIC                  "public"
 PROTECTED               "protected"
 PRIVATE                 "private"
+ASYNC                   "async"
+AWAIT                   "await"
 
 # Note: {"self", "Self", "true", "false"} are soft keywords
