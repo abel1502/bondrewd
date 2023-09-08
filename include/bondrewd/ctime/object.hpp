@@ -4,7 +4,6 @@
 
 #include <concepts>
 #include <type_traits>
-#include <hash_map>
 #include <variant>
 
 
@@ -201,12 +200,7 @@ public:
     /// The returned implementation is effective for this object.
     object_ptr get_effective_trait_impl(object_ptr trait) const;
 
-    /// Queries an attribute on this object. By default this
-    /// refers to the corresponding trait implementation.
-    /// `is_static` is true for `::`, false for `.`.
-    virtual object_ptr get_attr(object_ptr key, bool is_static) const;
-
-    // TODO: Decide on and add some methods for setting and deleting attrs?
+    // TODO: Decide on and add some more methods?
     #pragma endregion API
 
 protected:
@@ -320,6 +314,9 @@ explicit inline object_ptr::object_ptr(Object *ptr) :
 
 
 #pragma region std specializations
+// Note: object_ptr and object_ptr_to are hashed by-identity.
+//       I probably want to use a provided Hash (Key?) implementation instead
+
 template <>
 struct std::hash<bondrewd::ctime::object_ptr> {
     size_t operator()(const bondrewd::ctime::object_ptr &ptr) const noexcept {
