@@ -463,16 +463,21 @@ template do_smth4[T: type] => func () => {};
 
 impl ns std {
 
+// A type is, essentially, just a marker trait. Specific type-related behavior
+// is implemented through different traits. The primary reason for this to exist
+// is that to impl object a for object b, Trait must be implemented for a's
+// type, and Type should be implemented for b's type.
 trait Type: Hash + Eq + Copy {
-    var NameType: Type.with(Hash) = string;
-
-    func get_name(&self) -> Self::NameType;
 };
 
 trait Trait {
     func get_impl_for(&self, type: &Type): Option[TraitImpl[Self]];
 
-    func get_slots(&self) -> TraitSlots;
+    func get_slots(&self): TraitSlots;
+};
+
+trait ManualTrait : Trait {
+    func do_impl_for(&self, type: &Type, impl: TraitImpl[Self]): Unit;
 };
 
 // TODO: TraitImpl, TraitSlots, ...?

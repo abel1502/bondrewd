@@ -20,6 +20,12 @@ At the moment, the language is under active development. Anything in this
 documentation may change at any time.
 ```
 
+```{warning}
+As a matter of fact, a lot **has** changed, and some parts of this
+documentation are now outdated. Excercise caution, and refer to the
+[blog](https://bondrewd.dev/blog) for more up-to-date information.
+```
+
 ```{toctree}
 :maxdepth: 2
 :caption: Contents
